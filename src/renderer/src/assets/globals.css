@@ -1,0 +1,874 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent: #38bdf8;
+  --accent-dim: #0ea5e9;
+  --accent-glow: rgba(56, 189, 248, 0.35);
+  --accent-cyan: #22d3ee;
+  --accent-aurora: #7dd3fc;
+  --accent-purple: #8b93ff;
+  --bg-primary: #050508;
+  --bg-secondary: #0a0a0f;
+  --bg-surface: #0f0f16;
+  --bg-elevated: #15151e;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --text-primary: #f0f0f5;
+  --text-secondary: #9ca3af;
+  --text-muted: #4b5563;
+  --font-display-en: 'Cormorant Garamond', 'Times New Roman', serif;
+  --font-display: 'Microsoft YaHei UI', 'Microsoft YaHei', 'SimSun', 'NSimSun', serif;
+  --font-body: 'Outfit', 'Space Grotesk', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', 'SimSun', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-touch-callout: none;
+}
+
+/* Desktop-like interaction baseline:
+ * default non-selectable UI, explicit opt-in for text fields. */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable='true'],
+[data-allow-select='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-user-drag: auto;
+}
+
+a,
+button,
+[role='button'] {
+  cursor: default;
+}
+
+input,
+textarea,
+select,
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Keep keyboard accessibility while reducing browser-like focus styling. */
+:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.35);
+  outline-offset: 2px;
+}
+
+/* Hide caret in non-editable regions. */
+body {
+  caret-color: transparent;
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+  caret-color: auto;
+}
+
+/* Prevent image/link drag ghost in Electron window. */
+img,
+svg,
+a {
+  -webkit-user-drag: none;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Desktop-like scrollbar (closer to Win11 feel) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Electron drag region */
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Window controls tuned for desktop chrome feel */
+.native-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.native-window-controls button {
+  width: 34px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(212, 212, 216, 0.8);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.native-window-controls button:last-child {
+  border-right: none;
+}
+
+.native-window-controls button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.native-window-controls .native-close:hover {
+  background: rgba(239, 68, 68, 0.88);
+  color: #fff;
+}
+
+.native-titlebar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(10, 10, 15, 0.92), rgba(6, 6, 9, 0.78));
+  backdrop-filter: saturate(130%) blur(14px);
+}
+
+/* Unified desktop-style surfaces and controls */
+.desktop-panel {
+  background: rgba(17, 17, 24, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.desktop-panel-soft {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.desktop-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 90ms ease;
+}
+
+.desktop-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.desktop-btn:active {
+  transform: translateY(1px);
+}
+
+.desktop-input {
+  background: rgba(10, 10, 14, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.desktop-input:focus {
+  border-color: rgba(125, 211, 252, 0.55);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+  background: rgba(12, 12, 18, 0.95);
+}
+
+.desktop-tooltip {
+  background: rgba(12, 12, 16, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: rgba(244, 244, 245, 0.95);
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 5px 8px;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(8px);
+}
+
+.desktop-menu {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: rgba(14, 14, 19, 0.97);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(16px);
+}
+
+.desktop-menu-item {
+  min-height: 38px;
+  transition: background-color 120ms ease;
+}
+
+/* === COSMIC DEEP SPACE BACKGROUND === */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    /* Radial nebula glow top-left */
+    radial-gradient(ellipse 60% 50% at 15% 20%, rgba(56, 189, 248, 0.04) 0%, transparent 70%),
+    /* Radial nebula glow bottom-right */
+    radial-gradient(ellipse 50% 60% at 85% 80%, rgba(168, 85, 247, 0.04) 0%, transparent 70%),
+    /* Subtle grid */
+    linear-gradient(rgba(56, 189, 248, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.012) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 50px 50px, 50px 50px;
+}
+
+/* Cosmic noise grain overlay */
+.cosmic-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
+/* === TYPOGRAPHY SYSTEM === */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.font-display-en {
+  font-family: var(--font-display-en);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* === COSMIC GLOW UTILITIES === */
+.glow-cyan {
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.25), 0 0 48px rgba(56, 189, 248, 0.08);
+}
+
+.glow-purple {
+  box-shadow: 0 0 24px rgba(168, 85, 247, 0.2), 0 0 48px rgba(168, 85, 247, 0.06);
+}
+
+.text-glow-cyan {
+  text-shadow: 0 0 16px rgba(56, 189, 248, 0.4), 0 0 32px rgba(56, 189, 248, 0.15);
+}
+
+.text-glow-purple {
+  text-shadow: 0 0 16px rgba(168, 85, 247, 0.3);
+}
+
+/* === COSMIC SCENERY LAYERS === */
+.cosmic-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0%, transparent 44%, rgba(5, 5, 8, 0.22) 72%, rgba(5, 5, 8, 0.6) 100%),
+    linear-gradient(180deg, rgba(5, 5, 8, 0) 0%, rgba(5, 5, 8, 0.08) 40%, rgba(5, 5, 8, 0.35) 100%);
+}
+
+.cosmic-planet {
+  position: absolute;
+  border-radius: 999px;
+  overflow: visible;
+  transform: translateZ(0);
+}
+
+.cosmic-planet__core {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset -48px -24px 72px rgba(0, 0, 0, 0.35),
+    inset 10px 18px 28px rgba(255, 255, 255, 0.05),
+    0 0 120px rgba(125, 211, 252, 0.08);
+}
+
+.cosmic-planet__atmosphere {
+  position: absolute;
+  inset: -12%;
+  border-radius: inherit;
+  filter: blur(24px);
+  opacity: 0.8;
+}
+
+.cosmic-planet__ring {
+  position: absolute;
+  left: -18%;
+  top: 44%;
+  width: 136%;
+  height: 18%;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transform: rotate(-14deg);
+  box-shadow:
+    0 0 22px rgba(125, 211, 252, 0.08),
+    inset 0 0 18px rgba(255, 255, 255, 0.04);
+}
+
+.cosmic-planet--major {
+  top: 6%;
+  right: -2%;
+  width: min(34vw, 460px);
+  aspect-ratio: 1;
+  opacity: 0.92;
+}
+
+.cosmic-planet--major .cosmic-planet__core {
+  background:
+    radial-gradient(circle at 28% 28%, rgba(255, 255, 255, 0.16), transparent 18%),
+    radial-gradient(circle at 40% 34%, rgba(125, 211, 252, 0.18), transparent 38%),
+    linear-gradient(145deg, rgba(8, 17, 32, 0.98), rgba(18, 33, 56, 0.96));
+}
+
+.cosmic-planet--major .cosmic-planet__atmosphere {
+  background: radial-gradient(circle, rgba(125, 211, 252, 0.12) 0%, rgba(11, 61, 94, 0.06) 50%, transparent 78%);
+}
+
+.cosmic-planet--minor {
+  bottom: 10%;
+  left: -4%;
+  width: min(18vw, 240px);
+  aspect-ratio: 1;
+  opacity: 0.78;
+}
+
+.cosmic-planet--minor .cosmic-planet__core {
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), transparent 16%),
+    radial-gradient(circle at 42% 36%, rgba(120, 255, 214, 0.18), transparent 34%),
+    linear-gradient(145deg, rgba(10, 32, 26, 0.95), rgba(18, 46, 38, 0.92));
+}
+
+.cosmic-planet--minor .cosmic-planet__atmosphere {
+  background: radial-gradient(circle, rgba(74, 222, 128, 0.12) 0%, rgba(21, 128, 61, 0.04) 48%, transparent 78%);
+}
+
+.cosmic-planet--minor .cosmic-planet__ring {
+  top: 48%;
+  width: 128%;
+  left: -14%;
+  border-color: rgba(144, 238, 144, 0.12);
+  transform: rotate(18deg);
+}
+
+.cosmic-aurora {
+  position: absolute;
+  inset: auto;
+  filter: blur(26px);
+  opacity: 0.65;
+  mix-blend-mode: screen;
+  transform-origin: center;
+}
+
+.cosmic-aurora--north {
+  top: -8%;
+  left: 14%;
+  width: 62vw;
+  height: 28vh;
+  background:
+    linear-gradient(98deg, rgba(125, 211, 252, 0) 0%, rgba(125, 211, 252, 0.16) 26%, rgba(110, 231, 183, 0.18) 52%, rgba(191, 219, 254, 0.08) 74%, rgba(125, 211, 252, 0) 100%);
+  border-radius: 50% 50% 40% 40%;
+  animation: aurora-drift 18s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
+}
+
+.cosmic-aurora--arc {
+  bottom: 6%;
+  right: 12%;
+  width: 40vw;
+  height: 22vh;
+  background:
+    linear-gradient(120deg, rgba(56, 189, 248, 0) 0%, rgba(56, 189, 248, 0.12) 24%, rgba(129, 140, 248, 0.14) 56%, rgba(56, 189, 248, 0) 100%);
+  border-radius: 60% 40% 55% 45%;
+  animation: aurora-drift-reverse 22s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
+}
+
+.cosmic-ion-stream {
+  position: absolute;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, rgba(125, 211, 252, 0.16) 22%, rgba(191, 219, 254, 0.46) 52%, rgba(125, 211, 252, 0.12) 82%, transparent 100%);
+  filter: blur(0.4px);
+  opacity: 0.8;
+  box-shadow:
+    0 0 18px rgba(125, 211, 252, 0.18),
+    0 0 40px rgba(125, 211, 252, 0.08);
+}
+
+.cosmic-ion-stream::after {
+  content: '';
+  position: absolute;
+  inset: -12px 0;
+  background: inherit;
+  filter: blur(12px);
+  opacity: 0.45;
+}
+
+.cosmic-ion-stream--one {
+  top: 22%;
+  left: 30%;
+  width: 34vw;
+  transform: rotate(-18deg);
+  animation: ion-stream-drift 11s linear infinite;
+}
+
+.cosmic-ion-stream--two {
+  bottom: 24%;
+  left: 10%;
+  width: 28vw;
+  transform: rotate(14deg);
+  animation: ion-stream-drift-reverse 14s linear infinite;
+}
+
+.cosmic-ion-stream--three {
+  top: 58%;
+  right: 14%;
+  width: 22vw;
+  transform: rotate(-24deg);
+  animation: ion-stream-drift 13s linear infinite reverse;
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(-4%, -2%, 0) rotate(-5deg) scaleX(0.98);
+    opacity: 0.46;
+  }
+  100% {
+    transform: translate3d(4%, 2%, 0) rotate(3deg) scaleX(1.06);
+    opacity: 0.72;
+  }
+}
+
+@keyframes aurora-drift-reverse {
+  0% {
+    transform: translate3d(3%, 2%, 0) rotate(8deg) scaleX(1);
+    opacity: 0.38;
+  }
+  100% {
+    transform: translate3d(-4%, -3%, 0) rotate(0deg) scaleX(1.08);
+    opacity: 0.64;
+  }
+}
+
+@keyframes ion-stream-drift {
+  0% {
+    opacity: 0;
+    transform: translate3d(-6%, 0, 0) rotate(-18deg) scaleX(0.9);
+  }
+  18% {
+    opacity: 0.72;
+  }
+  82% {
+    opacity: 0.52;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(8%, -8%, 0) rotate(-18deg) scaleX(1.08);
+  }
+}
+
+@keyframes ion-stream-drift-reverse {
+  0% {
+    opacity: 0;
+    transform: translate3d(8%, 4%, 0) rotate(14deg) scaleX(0.92);
+  }
+  20% {
+    opacity: 0.68;
+  }
+  85% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-8%, -6%, 0) rotate(14deg) scaleX(1.05);
+  }
+}
+
+@media (max-width: 900px) {
+  .cosmic-planet--major {
+    width: 50vw;
+    top: 10%;
+    right: -10%;
+  }
+
+  .cosmic-planet--minor {
+    width: 28vw;
+    left: -8%;
+  }
+
+  .cosmic-ion-stream--one,
+  .cosmic-ion-stream--three {
+    width: 40vw;
+  }
+}
+
+/* === SCAN LINE ANIMATION === */
+@keyframes scan-line {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.scan-animate {
+  animation: scan-line 1.8s ease-in-out infinite;
+}
+
+/* === BREATHING / PULSE GLOW === */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(56, 189, 248, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* === ORBITAL RING ANIMATION === */
+@keyframes orbital-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.orbit-spin {
+  animation: orbital-spin 12s linear infinite;
+}
+
+.orbit-spin-reverse {
+  animation: orbital-spin 16s linear infinite reverse;
+}
+
+.orbit-spin-slow {
+  animation: orbital-spin 24s linear infinite;
+}
+
+/* === COSMIC FLOAT ANIMATION === */
+@keyframes cosmic-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.cosmic-float {
+  animation: cosmic-float 6s ease-in-out infinite;
+}
+
+/* === SHIMMER EFFECT === */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(56, 189, 248, 0.02) 25%,
+    rgba(56, 189, 248, 0.08) 50%,
+    rgba(56, 189, 248, 0.02) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
+
+/* === PARTICLE SHIMMER === */
+@keyframes particle-twinkle {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.particle-twinkle {
+  animation: particle-twinkle 4s ease-in-out infinite;
+}
+
+/* === BREATHING TEXT === */
+@keyframes breathe {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* === LIQUID GLASS === */
+.liquid-glass {
+  background: rgba(15, 15, 22, 0.6);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.liquid-glass-strong {
+  background: rgba(15, 15, 22, 0.75);
+  backdrop-filter: blur(32px) saturate(150%);
+  -webkit-backdrop-filter: blur(32px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* === COSMIC CARD === */
+.cosmic-card {
+  background: rgba(15, 15, 22, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 4px 20px rgba(0, 0, 0, 0.3);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cosmic-card:hover {
+  border-color: rgba(56, 189, 248, 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 24px rgba(56, 189, 248, 0.06),
+    0 0 40px rgba(56, 189, 248, 0.03);
+}
+
+/* === NEON ACCENT BORDER === */
+.neon-border {
+  position: relative;
+}
+
+.neon-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.4), rgba(168, 85, 247, 0.2), transparent 60%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* === RADIAL GRADIENT SPOTLIGHT === */
+.spotlight {
+  position: relative;
+  overflow: hidden;
+}
+
+.spotlight::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(56, 189, 248, 0.06), transparent 40%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.spotlight:hover::after {
+  opacity: 1;
+}
+
+/* === SCANNING RIPPLE === */
+@keyframes scan-ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.scan-ripple {
+  animation: scan-ripple 1.5s ease-out infinite;
+}
+
+/* === DATA STREAM === */
+@keyframes data-stream {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+}
+
+/* === COSMIC BUTTON === */
+.cosmic-btn {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(168, 85, 247, 0.1));
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 12px;
+  color: #e0f2fe;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cosmic-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(168, 85, 247, 0.15));
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+.cosmic-btn:hover {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.cosmic-btn:hover::before {
+  opacity: 1;
+}
+
+.cosmic-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* === COSMIC INPUT === */
+.cosmic-input {
+  background: rgba(15, 15, 22, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  color: var(--text-primary);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cosmic-input:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* === SKELETON LOADER === */
+.skeleton-cosmic {
+  background: linear-gradient(
+    90deg,
+    rgba(56, 189, 248, 0.03) 25%,
+    rgba(56, 189, 248, 0.08) 50%,
+    rgba(56, 189, 248, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+  border-radius: 8px;
+}
+
+/* === ORBITAL DECORATION RING === */
+@keyframes orbital-dash {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -283;
+  }
+}
+
+.orbit-ring {
+  transform-origin: center;
+}
+
+.orbit-ring-dash {
+  stroke-dasharray: 20 10;
+  animation: orbital-dash 8s linear infinite;
+}

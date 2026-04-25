@@ -1,0 +1,39 @@
+node_modules
+dist
+out
+.DS_Store
+.eslintcache
+*.log*
+# PyInstaller output (pre-built bwm_helper executable, generated via npm run build:python)
+resources/bin/
+build/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+Thumbs.db
+.agents/
+.cursor/
+skills-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Build/cache artifacts
+coverage/
+*.tsbuildinfo
+tmp/
+temp/
+
+# Test images
+blind_watermark/测试图*.png

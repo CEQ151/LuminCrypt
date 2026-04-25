@@ -1,0 +1,5 @@
+numpy>=1.17.0
+opencv-python
+scipy>=1.7.0
+reedsolo>=0.6.0
+setuptools

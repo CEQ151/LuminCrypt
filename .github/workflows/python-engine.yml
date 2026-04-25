@@ -1,0 +1,34 @@
+name: test all
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Test robust watermark engine
+    defaults:
+      run:
+        working-directory: blind_watermark
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Smoke test — import and roundtrip
+        shell: python {0}
+        run: |
+          from rwm_engine import embed_watermark, extract_watermark, check_dependencies
+          import numpy as np
+          dep = check_dependencies()
+          assert dep['ok'], f'Missing deps: {dep}'
+          img = np.random.randint(0, 256, (200, 200, 3), dtype=np.uint8)
+          wm = embed_watermark(img, 'hello world', password=42, quality='balanced')
+          extracted = extract_watermark(wm, password=42, quality='balanced')
+          assert extracted == 'hello world', f'Roundtrip failed: {extracted}'
+          print('All tests passed.')
