@@ -22,6 +22,8 @@ jobs:
           pip install -r requirements.txt
       - name: Smoke test — import and roundtrip
         shell: python {0}
+        env:
+          PYTHONPATH: .
         run: |
           from rwm_engine import embed_watermark, extract_watermark, check_dependencies
           import numpy as np
