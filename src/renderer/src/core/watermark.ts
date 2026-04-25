@@ -355,18 +355,6 @@ function scatterInvisible(invisible: string, hostText: string, scatterSeed: numb
   return result
 }
 
-function encodeNibblesDirect(nibs: number[]): string {
-  return nibs.map((n) => CARRIERS[n & 0xf]).join('')
-}
-
-function decodeCarriersDirect(carriers: string[]): number[] {
-  const out: number[] = []
-  for (const ch of carriers) {
-    const idx = CARRIER_INDEX.get(ch)
-    if (idx !== undefined) out.push(idx)
-  }
-  return out
-}
 
 function crc8(bytes: Uint8Array): number {
   let c = 0
