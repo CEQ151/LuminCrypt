@@ -29,7 +29,7 @@ jobs:
           import numpy as np
           dep = check_dependencies()
           assert dep['ok'], f'Missing deps: {dep}'
-          img = np.random.randint(0, 256, (200, 200, 3), dtype=np.uint8)
+          img = np.random.randint(0, 256, (800, 800, 3), dtype=np.uint8)
           wm = embed_watermark(img, 'hello world', password=42, quality='balanced')
           extracted = extract_watermark(wm, password=42, quality='balanced')
           assert extracted == 'hello world', f'Roundtrip failed: {extracted}'
