@@ -109,9 +109,9 @@ function createWindow(): void {
   mainWindow.webContents.on('render-process-gone', (_e, details) => {
     console.error('[renderer] process gone:', details)
   })
-  mainWindow.webContents.on('console-message', (_event, msg) => {
-    const tag = ['VERBOSE', 'INFO', 'WARN', 'ERROR'][msg.level] ?? 'LOG'
-    console.log(`[renderer:${tag}] ${msg.message} (${msg.sourceUrl}:${msg.lineNumber})`)
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    const tag = ['VERBOSE', 'INFO', 'WARN', 'ERROR'][level] ?? 'LOG'
+    console.log(`[renderer:${tag}] ${message} (${sourceId}:${line})`)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
