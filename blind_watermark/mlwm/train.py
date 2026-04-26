@@ -60,6 +60,8 @@ def resolve_cli_overrides(config: dict[str, Any], args) -> dict[str, Any]:
     out['grad_accum'] = args.grad_accum
   if args.device:
     out['device'] = args.device
+  if args.checkpoint:
+    out['checkpoint'] = args.checkpoint
   if args.amp:
     out['amp'] = True
   if args.epochs:
@@ -210,6 +212,11 @@ def train_main(args) -> dict[str, Any]:
   )
   encoder.to(device)
   decoder.to(device)
+  checkpoint_path = config.get('checkpoint')
+  if checkpoint_path:
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    encoder.load_state_dict(checkpoint['encoder'])
+    decoder.load_state_dict(checkpoint['decoder'])
   optimizer = torch.optim.AdamW(
     list(encoder.parameters()) + list(decoder.parameters()),
     lr=float(config.get('optimizer', {}).get('lr', 2e-4)),
@@ -452,6 +459,7 @@ def train_main(args) -> dict[str, Any]:
       'bestEpoch': best_epoch,
       'bestCheckpoint': str(best_ckpt_path),
       'bestScore': best_score,
+      'initCheckpoint': str(checkpoint_path) if checkpoint_path else None,
     },
   )
   write_json(run_dir / 'run_manifest.json', manifest)
@@ -475,6 +483,7 @@ def main() -> None:
   parser.add_argument('--epochs', type=int)
   parser.add_argument('--amp', action='store_true')
   parser.add_argument('--device')
+  parser.add_argument('--checkpoint')
   parser.add_argument('--stage', choices=['warmup', 'main', 'hard_negative', 'finalize'])
   args = parser.parse_args()
   result = train_main(args)
