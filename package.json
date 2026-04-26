@@ -1,10 +1,36 @@
 {
   "name": "lumincrypt",
   "version": "1.0.0",
-  "description": "LuminCrypt - Unicode steganography and watermark studio",
+  "description": "Local-first Unicode steganography detector, encrypted text watermark studio, and robust blind image watermark toolkit.",
   "main": "./out/main/index.js",
   "author": "LuminCrypt",
-  "homepage": "https://github.com/lumincrypt",
+  "homepage": "https://github.com/CEQ151/LuminCrypt",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CEQ151/LuminCrypt.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CEQ151/LuminCrypt/issues"
+  },
+  "keywords": [
+    "unicode",
+    "steganography",
+    "watermark",
+    "unicode-watermark",
+    "text-watermark",
+    "blind-watermark",
+    "image-watermark",
+    "robust-watermarking",
+    "ai-watermark-detection",
+    "zero-width-characters",
+    "homoglyph",
+    "bidi-control",
+    "content-provenance",
+    "image-forensics",
+    "electron",
+    "react",
+    "typescript"
+  ],
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",

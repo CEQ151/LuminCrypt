@@ -1,92 +1,89 @@
 <div align="center">
   <h1>LuminCrypt</h1>
-  <p><strong>桌面级 Unicode 隐写检测与鲁棒水印（文本/图片）工具箱</strong></p>
+  <p><strong>Local-first Unicode steganography detection and robust watermark toolkit for text and images.</strong></p>
 
   <p>
-    <img src="https://img.shields.io/badge/Electron-39.0-47848F?logo=electron&logoColor=white" />
-    <img src="https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black" />
-    <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" />
-    <img src="https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white" />
-    <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg" />
+    <a href="README.zh-CN.md">简体中文</a>
   </p>
 
-  <!-- 缩小 Logo，避免占屏 -->
-  <img src="https://github.com/user-attachments/assets/ae9e81a0-a1d4-4271-a0a0-ab17c291bba9" width="220" alt="logo" />
+  <p>
+    <img src="https://img.shields.io/badge/Electron-39-47848F?logo=electron&logoColor=white" alt="Electron" />
+    <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black" alt="React" />
+    <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python" />
+    <img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg" alt="License" />
+  </p>
+
+  <img src="https://github.com/user-attachments/assets/ae9e81a0-a1d4-4271-a0a0-ab17c291bba9" width="220" alt="LuminCrypt logo" />
 </div>
 
 ---
 
-LuminCrypt 是一个基于 Electron + React + TypeScript 构建的现代桌面安全工具，致力于解决文本中的可疑 Unicode 字符检测问题，并提供强大的文本与图片隐写水印能力。
+LuminCrypt is a desktop security toolkit for **Unicode hidden-character detection**, **encrypted invisible text watermarking**, and **robust blind image watermarking**. It helps researchers, creators, publishers, and security teams inspect suspicious Unicode content, embed recoverable text fingerprints, and test image watermarks against compression, resizing, cropping, and platform re-encoding.
 
-## 🌟 核心功能
+## Key Features
 
-- **异常字符检测**：精准识别并高亮文本中的零宽字符、BiDi 控制符、同形字、Tags 区块等隐形或易混淆的 Unicode 字符。
-- **文本水印 (隐写)**：基于 AES-256-GCM 加密，利用不可见字符将水印信息隐写至普通文本中，支持高容错的鲁棒冗余模式（即使载体丢失 10~30% 仍可恢复）。
-- **图片盲水印**：内置强大的 Python 盲水印引擎（Block-DCT + QIM + Reed-Solomon），支持多尺度嵌入，强力抵抗缩放、裁剪、平台二次压缩等破坏。
-- **批量处理与导出**：支持批量扫描文件，并将检测报告一键导出为 JSON、CSV 或 PDF 格式。
+- **Unicode hidden character detection**: finds zero-width characters, BiDi controls, homoglyphs, Unicode Tags, variation selectors, and non-standard spaces.
+- **Encrypted text watermarking**: embeds AES-256-GCM protected payloads into normal text with invisible Unicode carriers and robust redundancy.
+- **Blind image watermarking**: uses a Python image watermark engine based on block-DCT, QIM-style embedding, Reed-Solomon recovery, and multi-scale extraction.
+- **Batch processing and reports**: scans files in batches and exports detection results as JSON, CSV, or PDF.
+- **Local desktop workflow**: built with Electron, React, TypeScript, and a Python helper for image watermark processing.
 
----
+## Screenshots
 
-## 📸 截图示例
-
-<!-- 使用表格实现紧凑排版 -->
 <table>
   <tr>
-    <td><img src="https://github.com/user-attachments/assets/f12aaab2-747b-4cd8-b796-4b774d5ce56a" width="100%"/></td>
-    <td><img src="https://github.com/user-attachments/assets/93dcb2ac-b11e-4c65-b47f-70a842f79372" width="100%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/f12aaab2-747b-4cd8-b796-4b774d5ce56a" width="100%" alt="LuminCrypt screenshot 1" /></td>
+    <td><img src="https://github.com/user-attachments/assets/93dcb2ac-b11e-4c65-b47f-70a842f79372" width="100%" alt="LuminCrypt screenshot 2" /></td>
   </tr>
   <tr>
-    <td><img src="https://github.com/user-attachments/assets/770361e8-34f7-4f58-ba98-1d113b9c2a60" width="100%"/></td>
-    <td><img src="https://github.com/user-attachments/assets/b677c03c-fa24-4d0e-97e6-1e174adc5010" width="100%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/770361e8-34f7-4f58-ba98-1d113b9c2a60" width="100%" alt="LuminCrypt screenshot 3" /></td>
+    <td><img src="https://github.com/user-attachments/assets/b677c03c-fa24-4d0e-97e6-1e174adc5010" width="100%" alt="LuminCrypt screenshot 4" /></td>
   </tr>
   <tr>
-    <td><img src="https://github.com/user-attachments/assets/8dce171c-c251-49b9-8799-69c80cbb756f" width="100%"/></td>
-    <td><img src="https://github.com/user-attachments/assets/d9107174-6f9a-417b-a584-bbf89c7cc11f" width="100%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/8dce171c-c251-49b9-8799-69c80cbb756f" width="100%" alt="LuminCrypt screenshot 5" /></td>
+    <td><img src="https://github.com/user-attachments/assets/d9107174-6f9a-417b-a584-bbf89c7cc11f" width="100%" alt="LuminCrypt screenshot 6" /></td>
   </tr>
 </table>
 
----
+## Requirements
 
-## 🛠️ 环境要求
+| Tool | Version | Notes |
+|---|---:|---|
+| Node.js | 18+ | Electron and frontend build |
+| npm | 9+ | Package manager |
+| Python | 3.10+ recommended | Required for the image watermark backend |
 
-| 工具 | 最低版本 | 说明 |
-|------|----------|------|
-| **Node.js** | 18+ | 运行 Electron 和前端构建 |
-| **npm** | 9+ | 包管理工具 |
-| **Python** | 3.8+ | 仅图片盲水印引擎需要 |
+## Quick Start
 
-## 🚀 本地开发
-
-### 1. 安装 Node 依赖
+Install Node dependencies:
 
 ```bash
 npm install
 ```
 
-### 2. 安装 Python 依赖（仅图片水印功能需要）
+Install Python image-watermark dependencies:
 
 ```bash
-pip install numpy opencv-python scipy reedsolo
+pip install -r blind_watermark/requirements.txt
 ```
 
-### 3. 启动开发模式
+Start the development app:
 
 ```bash
 npm run dev
 ```
 
-### 4. 类型检查
+Run TypeScript checks:
 
 ```bash
 npm run typecheck
 ```
 
-## 📦 打包构建
-
-### 构建 Electron 应用
+## Build
 
 ```bash
-# Windows（输出安装包 + 便携版）
+# Windows
 npm run build:win
 
 # macOS
@@ -96,40 +93,42 @@ npm run build:mac
 npm run build:linux
 ```
 
-### 可选：将 Python 引擎打包为独立 exe（无需用户安装 Python）
+Build the Python image-watermark helper:
 
 ```bash
 npm run build:python
 ```
 
-> 提示：需要先安装 PyInstaller (`pip install pyinstaller`)。  
-> 产物将输出至 `resources/bin/bwm_helper.exe`，后续执行 `electron-builder` 打包时会自动将其包含在内。
+The packaged helper is written to `resources/bin/bwm_helper.exe` and included by `electron-builder`.
 
-## 🪟 Windows 一键脚本
+## Windows Helper Scripts
 
-项目根目录提供了几个方便 Windows 开发者使用的批处理脚本：
+- `start.bat`: interactive launcher for development and preview workflows.
+- `pack.bat`: one-click Windows packaging script that checks the environment, installs dependencies, builds the Python helper, and runs `electron-builder`.
+- `build.bat`: compatibility wrapper that delegates to `pack.bat` when available.
 
-- `start.bat`: 一键启动器，提供交互式菜单，可选择启动开发模式（热重载）或预览已构建的版本。
-- `pack.bat`: 一键打包脚本，自动检查环境、安装依赖、构建 Python 引擎，并最终调用 electron-builder 生成 Windows 安装包和便携版。
-- `build.bat`: 兼容性构建脚本，若存在 `pack.bat` 则会直接转调 `pack.bat`。
-
-## 📂 项目结构
+## Repository Layout
 
 ```text
 LuminCrypt/
-├── src/
-│   ├── main/           # Electron 主进程 (安全策略、IPC 通信)
-│   ├── preload/        # 预加载脚本 (上下文隔离)
-│   └── renderer/       # React 前端 UI
-│       ├── core/       # 文本水印引擎与字符检测逻辑 (TypeScript)
-│       └── components/ # React 组件
-├── blind_watermark/
-│   ├── rwm_engine.py   # 图片盲水印核心算法 (Python)
-│   └── bwm_helper.py   # 与 Electron 通信的 CLI 桥接脚本
-└── resources/          # 打包所需的静态资源与预编译二进制文件
+|-- src/
+|   |-- main/           # Electron main process, security policy, IPC
+|   |-- preload/        # Context-isolated preload bridge
+|   `-- renderer/       # React UI and TypeScript logic
+|       |-- core/       # Text watermarking and Unicode detection
+|       `-- components/ # React components
+|-- blind_watermark/
+|   |-- rwm_engine.py   # Image blind watermark engine
+|   `-- bwm_helper.py   # CLI bridge used by Electron
+`-- resources/          # Static assets and packaged binaries
 ```
 
-## 📄 许可证
+## Search Keywords
 
-本项目采用 **GPL-3.0** 许可证，详见 [LICENSE](LICENSE) 文件。  
-图片水印引擎基于开源项目 [blind_watermark](https://github.com/guofei9987/blind_watermark) 深度定制，相关版权声明详见 [NOTICE](NOTICE) 文件。
+Unicode steganography, Unicode watermark, invisible watermark, AI watermark detection, zero-width character detector, homoglyph detection, BiDi control detector, text watermarking, blind image watermark, robust image watermarking, digital watermarking, image forensics, content provenance, Electron security tool.
+
+## License
+
+LuminCrypt is released under the **GPL-3.0** license. See [LICENSE](LICENSE).
+
+The image watermark engine includes customization based on the open-source [blind_watermark](https://github.com/guofei9987/blind_watermark) project. See [NOTICE](NOTICE) for attribution.
