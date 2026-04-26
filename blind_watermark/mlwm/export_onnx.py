@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,13 @@ from .codec import PAYLOAD_BITS
 from .infer import probe_runtime
 from .models import build_models, require_torch
 from .traceability import config_hash, git_snapshot, sha256_file, stable_json_dumps, utc_now_iso, write_json
+
+
+def configure_console_encoding() -> None:
+  for stream_name in ('stdout', 'stderr'):
+    stream = getattr(sys, stream_name, None)
+    if hasattr(stream, 'reconfigure'):
+      stream.reconfigure(encoding='utf-8', errors='replace')
 
 
 def load_config(path: str) -> dict[str, Any]:
@@ -51,7 +59,8 @@ def export_models(config: dict[str, Any], checkpoint_path: str, out_dir: str | N
     input_names=['image', 'payload_bits'],
     output_names=['residual'],
     dynamic_axes=None,
-    opset_version=int(config.get('export', {}).get('opset', 17)),
+    opset_version=int(config.get('export', {}).get('opset', 18)),
+    external_data=False,
   )
   torch.onnx.export(
     decoder,
@@ -60,7 +69,8 @@ def export_models(config: dict[str, Any], checkpoint_path: str, out_dir: str | N
     input_names=['image'],
     output_names=['payload_logits', 'confidence'],
     dynamic_axes=None,
-    opset_version=int(config.get('export', {}).get('opset', 17)),
+    opset_version=int(config.get('export', {}).get('opset', 18)),
+    external_data=False,
   )
 
   manifest = {
@@ -91,6 +101,7 @@ def export_models(config: dict[str, Any], checkpoint_path: str, out_dir: str | N
 
 
 def main() -> None:
+  configure_console_encoding()
   parser = argparse.ArgumentParser(description='Export MLWM v1 models to ONNX')
   parser.add_argument('--config', required=True)
   parser.add_argument('--checkpoint', required=True)

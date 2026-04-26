@@ -9,9 +9,26 @@
 ## Install
 
 ```bash
-python -m venv .venv-ml
-.venv-ml\\Scripts\\activate
-pip install -r blind_watermark/requirements-ml.txt
+py -3.12 -m venv .venv-ml
+.venv-ml\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+python -m pip install -r blind_watermark/requirements-ml.txt
+```
+
+For packaging/runtime checks:
+
+```bash
+py -3.12 -m venv .venv-pack
+.venv-pack\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -r blind_watermark/requirements-onnx.txt pyinstaller
+```
+
+Verify GPU availability:
+
+```bash
+.venv-ml\Scripts\python.exe -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
 ```
 
 ## Dataset
@@ -23,17 +40,20 @@ pip install -r blind_watermark/requirements-ml.txt
 ## Smoke run
 
 ```bash
-python -m blind_watermark.mlwm.train --config configs/mlwm/smoke.yaml
+.venv-ml\Scripts\python.exe -m blind_watermark.mlwm.train --config configs/mlwm/smoke.yaml
 ```
 
 ## Main run
 
 ```bash
-python -m blind_watermark.mlwm.train --config configs/mlwm/main.yaml
+.venv-ml\Scripts\python.exe -m blind_watermark.mlwm.train --config configs/mlwm/main.yaml
 ```
 
 ## Export
 
 ```bash
-python -m blind_watermark.mlwm.export_onnx --config configs/mlwm/export.yaml --checkpoint <path-to-best.ckpt>
+.venv-ml\Scripts\python.exe -m blind_watermark.mlwm.export_onnx --config configs/mlwm/export.yaml --checkpoint <path-to-best.ckpt>
 ```
+
+Use `--out-dir artifacts/mlwm_v1/tmp/<name>` for smoke exports. Only write to
+`resources/models/neural_wm` when promoting a benchmarked model.

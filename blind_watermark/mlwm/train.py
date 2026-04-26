@@ -91,6 +91,7 @@ def attack_batch(torch_mod, watermarked, attack_cfg, stage_strength: str):
   for sample in watermarked.detach().cpu().numpy():
     rgb = np.clip(np.round(sample.transpose(1, 2, 0) * 255.0), 0, 255).astype(np.uint8)
     attacked_rgb = apply_random_attack_chain(rgb, config=attack_cfg, strength=stage_strength)
+    attacked_rgb = np.ascontiguousarray(attacked_rgb)
     attacked.append(torch_mod.from_numpy(attacked_rgb).permute(2, 0, 1).float() / 255.0)
   return torch_mod.stack(attacked, dim=0)
 

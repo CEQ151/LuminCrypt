@@ -1,6 +1,6 @@
 extends: configs/mlwm/base.yaml
 export:
-  opset: 17
+  opset: 18
   export_encoder: true
   export_decoder: true
   verify_with_onnxruntime: true

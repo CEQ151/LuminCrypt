@@ -7,4 +7,6 @@ torch>=2.4.0
 torchvision>=0.19.0
 kornia>=0.7.3
 onnx>=1.17.0
+onnxscript>=0.5.0
+onnxruntime>=1.20.0
 tensorboard>=2.18.0
