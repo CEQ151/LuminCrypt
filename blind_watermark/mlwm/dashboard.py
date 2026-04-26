@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import mimetypes
 import os
 import subprocess
 import time
@@ -53,6 +54,11 @@ def _read_metrics(path: Path) -> list[dict[str, Any]]:
   except OSError:
     return []
   return rows
+
+
+def _read_live_status(path: Path) -> dict[str, Any] | None:
+  payload = _read_json(path)
+  return payload if isinstance(payload, dict) else None
 
 
 def _latest_run(runs_dir: Path) -> Path | None:
@@ -191,6 +197,7 @@ def build_status(runs_dir: Path, run_arg: str | None) -> dict[str, Any]:
     'exists': run_dir.exists(),
     'updatedAt': time.strftime('%Y-%m-%d %H:%M:%S'),
     'metrics': metrics,
+    'live': _read_live_status(run_dir / 'live_status.json'),
     'latest': latest,
     'best': best,
     'progress': _estimate_progress(metrics, config, run_dir) if run_dir.exists() else {},
@@ -243,6 +250,10 @@ HTML = r'''<!doctype html>
     .pill { display:inline-flex; align-items:center; gap:7px; padding:6px 9px; border-radius:999px; background:#111317; border:1px solid var(--line); font-size:13px; color:var(--muted); }
     .dot { width:8px; height:8px; border-radius:50%; background:var(--red); }
     .dot.on { background:var(--green); }
+    .film { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:12px; }
+    .frame { background:#0f1114; border:1px solid var(--line); border-radius:8px; overflow:hidden; min-height:180px; position:relative; }
+    .frame img { width:100%; height:240px; object-fit:cover; display:block; }
+    .frame span { position:absolute; left:8px; top:8px; background:rgba(0,0,0,.62); padding:4px 7px; border-radius:999px; font-size:11px; color:#eef2f5; }
     @media (max-width: 980px) { main { grid-template-columns:1fr; } .span3,.span4,.span6,.span8,.span12 { grid-column:span 1; } header { display:block; } }
   </style>
 </head>
@@ -259,6 +270,7 @@ HTML = r'''<!doctype html>
     <section class="card span3"><div class="label">Stage</div><div class="value" id="stage">-</div><div class="small" id="eta">-</div></section>
     <section class="card span3"><div class="label">Payload Accuracy</div><div class="value" id="acc">-</div><div class="small" id="best">-</div></section>
     <section class="card span3"><div class="label">GPU</div><div class="value" id="gpu">-</div><div class="small" id="gpuDetail">-</div></section>
+    <section class="card span12"><div class="label">Live Sample Stream</div><div class="value" id="batch">-</div><div class="small" id="liveStats">-</div><div class="bar"><div id="batchBar"></div></div><div class="film"><div class="frame"><span>clean</span><img id="imgClean" /></div><div class="frame"><span>watermarked</span><img id="imgWatermarked" /></div><div class="frame"><span>attacked</span><img id="imgAttacked" /></div></div></section>
     <section class="card span6"><div class="label">Accuracy</div><canvas id="accChart"></canvas></section>
     <section class="card span6"><div class="label">Loss</div><canvas id="lossChart"></canvas></section>
     <section class="card span8"><div class="label">Recent Epochs</div><table><thead><tr><th>Epoch</th><th>Stage</th><th>Loss</th><th>Payload Acc</th><th>Exact</th><th>Confidence</th></tr></thead><tbody id="rows"></tbody></table></section>
@@ -288,6 +300,7 @@ HTML = r'''<!doctype html>
       const data = await res.json();
       const latest = data.latest || {};
       const progress = data.progress || {};
+      const liveStatus = data.live || {};
       document.getElementById('runName').textContent = `${data.runName || '-'} · ${data.runDir || ''}`;
       const live = (data.processes || []).length > 0;
       document.getElementById('liveDot').className = 'dot ' + (live ? 'on' : '');
@@ -302,6 +315,16 @@ HTML = r'''<!doctype html>
       const gpu = data.gpu || {};
       document.getElementById('gpu').textContent = gpu.available ? `${gpu.utilizationPct ?? 0}%` : 'n/a';
       document.getElementById('gpuDetail').textContent = gpu.available ? `${gpu.name} · ${gpu.temperatureC}C · ${gpu.memoryUsedMB}/${gpu.memoryTotalMB} MB` : (gpu.error || '-');
+      const batchPercent = liveStatus.batchPercent || 0;
+      document.getElementById('batch').textContent = liveStatus.batch ? `batch ${liveStatus.batch}/${liveStatus.batchesPerEpoch}` : '-';
+      document.getElementById('liveStats').textContent = liveStatus.updatedAt ? `${liveStatus.phase || '-'} · loss ${fmtNum(liveStatus.runningLoss)} · samples ${liveStatus.samplesSeen || 0} · updated ${liveStatus.updatedAt}` : 'waiting for live batch telemetry';
+      document.getElementById('batchBar').style.width = `${Math.min(100, batchPercent * 100)}%`;
+      if (liveStatus.sampleImages) {
+        const stamp = Date.now();
+        document.getElementById('imgClean').src = `/run-file?path=${encodeURIComponent(liveStatus.sampleImages.clean)}&t=${stamp}`;
+        document.getElementById('imgWatermarked').src = `/run-file?path=${encodeURIComponent(liveStatus.sampleImages.watermarked)}&t=${stamp}`;
+        document.getElementById('imgAttacked').src = `/run-file?path=${encodeURIComponent(liveStatus.sampleImages.attacked)}&t=${stamp}`;
+      }
       const metrics = data.metrics || [];
       const labels = metrics.map(r => r.epoch);
       accChart.data.labels = labels;
@@ -317,7 +340,7 @@ HTML = r'''<!doctype html>
       document.getElementById('stdout').textContent = (data.logs && data.logs.stdout) || '';
     }
     refresh();
-    setInterval(refresh, 5000);
+    setInterval(refresh, 2000);
   </script>
 </body>
 </html>'''
@@ -333,6 +356,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
       qs = parse_qs(parsed.query)
       run = qs.get('run', [self.run_arg])[0]
       self._send_json(build_status(self.runs_dir, run))
+      return
+    if parsed.path == '/run-file':
+      qs = parse_qs(parsed.query)
+      run = qs.get('run', [self.run_arg])[0]
+      rel = qs.get('path', [''])[0]
+      self._send_run_file(run, rel)
       return
     if parsed.path in {'/', '/index.html'}:
       self._send_bytes(HTML.encode('utf-8'), 'text/html; charset=utf-8')
@@ -352,6 +381,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
     self.send_header('Content-Length', str(len(payload)))
     self.end_headers()
     self.wfile.write(payload)
+
+  def _send_run_file(self, run_arg: str | None, rel_path: str) -> None:
+    run_dir = Path(run_arg) if run_arg else (_latest_run(self.runs_dir) or self.runs_dir)
+    if not run_dir.is_absolute():
+      run_dir = run_dir.resolve()
+    target = (run_dir / rel_path).resolve()
+    try:
+      target.relative_to(run_dir.resolve())
+    except ValueError:
+      self.send_error(403)
+      return
+    if not target.exists() or not target.is_file():
+      self.send_error(404)
+      return
+    content_type = mimetypes.guess_type(str(target))[0] or 'application/octet-stream'
+    self._send_bytes(target.read_bytes(), content_type)
 
 
 def main() -> None:

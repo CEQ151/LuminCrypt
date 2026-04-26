@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import random
+import time
 from pathlib import Path
 from typing import Any
 
@@ -101,6 +103,38 @@ def save_checkpoint(path: Path, payload: dict[str, Any], torch_mod) -> None:
   torch_mod.save(payload, path)
 
 
+def tensor_rgb_to_bgr_uint8(tensor) -> np.ndarray:
+  sample = tensor.detach().float().cpu().numpy()
+  if sample.ndim == 4:
+    sample = sample[0]
+  rgb = np.clip(np.round(sample.transpose(1, 2, 0) * 255.0), 0, 255).astype(np.uint8)
+  return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+
+def write_live_status(
+  run_dir: Path,
+  *,
+  status: dict[str, Any],
+  clean=None,
+  watermarked=None,
+  attacked=None,
+  save_samples: bool = False,
+) -> None:
+  live_dir = run_dir / 'live_samples'
+  if save_samples:
+    live_dir.mkdir(parents=True, exist_ok=True)
+    if clean is not None:
+      cv2.imwrite(str(live_dir / 'latest_clean.jpg'), tensor_rgb_to_bgr_uint8(clean))
+    if watermarked is not None:
+      cv2.imwrite(str(live_dir / 'latest_watermarked.jpg'), tensor_rgb_to_bgr_uint8(watermarked))
+    if attacked is not None:
+      cv2.imwrite(str(live_dir / 'latest_attacked.jpg'), tensor_rgb_to_bgr_uint8(attacked))
+  target = run_dir / 'live_status.json'
+  tmp = run_dir / 'live_status.tmp'
+  tmp.write_text(json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8')
+  tmp.replace(target)
+
+
 def prepare_run_dir(config: dict[str, Any]) -> Path:
   git = git_snapshot()
   run_name = f"{utc_now_iso().replace(':', '').replace('+00:00', 'Z').replace('-', '')}_{git.get('shortCommit') or 'nogit'}"
@@ -170,6 +204,9 @@ def train_main(args) -> dict[str, Any]:
   grad_accum = int(config.get('grad_accum', 4))
   loss_cfg = config.get('loss', {})
   metrics_path = run_dir / 'metrics_epoch.csv'
+  live_start_time = time.time()
+  live_status_interval = int(config.get('dashboard', {}).get('status_interval_batches', 1))
+  live_sample_interval = int(config.get('dashboard', {}).get('sample_interval_batches', 10))
   best_score = -1.0
   best_epoch = -1
   best_ckpt_path = run_dir / 'best.ckpt'
@@ -184,7 +221,7 @@ def train_main(args) -> dict[str, Any]:
       for parameter in encoder.parameters():
         parameter.requires_grad = not freeze_encoder
       stage_epochs = int(stage_cfg.get('epochs', 1))
-      for _ in range(stage_epochs):
+      for stage_epoch_index in range(stage_epochs):
         global_epoch += 1
         encoder.train(not freeze_encoder)
         decoder.train()
@@ -226,7 +263,39 @@ def train_main(args) -> dict[str, Any]:
             scaler.step(optimizer)
             scaler.update()
             optimizer.zero_grad(set_to_none=True)
-          total_loss += float(loss.item()) * grad_accum
+          last_loss = float(loss.item()) * grad_accum
+          total_loss += last_loss
+          if (batch_index + 1) % max(1, live_status_interval) == 0:
+            batches_per_epoch = max(len(train_loader), 1)
+            completed_batches = batch_index + 1
+            samples_seen = ((global_epoch - 1) * batches_per_epoch + completed_batches) * int(config.get('batch_size', 4))
+            write_live_status(
+              run_dir,
+              status={
+                'phase': 'train',
+                'updatedAt': utc_now_iso(),
+                'stage': stage_name,
+                'stageEpoch': stage_epoch_index + 1,
+                'stageEpochs': stage_epochs,
+                'epoch': global_epoch,
+                'batch': completed_batches,
+                'batchesPerEpoch': batches_per_epoch,
+                'batchPercent': completed_batches / batches_per_epoch,
+                'samplesSeen': samples_seen,
+                'lastLoss': last_loss,
+                'runningLoss': total_loss / completed_batches,
+                'elapsedSeconds': time.time() - live_start_time,
+                'sampleImages': {
+                  'clean': 'live_samples/latest_clean.jpg',
+                  'watermarked': 'live_samples/latest_watermarked.jpg',
+                  'attacked': 'live_samples/latest_attacked.jpg',
+                },
+              },
+              clean=clean,
+              watermarked=watermarked,
+              attacked=attacked,
+              save_samples=(batch_index == 0) or ((batch_index + 1) % max(1, live_sample_interval) == 0),
+            )
 
         encoder.eval()
         decoder.eval()
@@ -234,6 +303,29 @@ def train_main(args) -> dict[str, Any]:
         val_exact = 0.0
         val_conf = 0.0
         val_batches = 0
+        write_live_status(
+          run_dir,
+          status={
+            'phase': 'validation',
+            'updatedAt': utc_now_iso(),
+            'stage': stage_name,
+            'stageEpoch': stage_epoch_index + 1,
+            'stageEpochs': stage_epochs,
+            'epoch': global_epoch,
+            'batch': len(train_loader),
+            'batchesPerEpoch': max(len(train_loader), 1),
+            'batchPercent': 1.0,
+            'samplesSeen': global_epoch * max(len(train_loader), 1) * int(config.get('batch_size', 4)),
+            'lastLoss': total_loss / max(len(train_loader), 1),
+            'runningLoss': total_loss / max(len(train_loader), 1),
+            'elapsedSeconds': time.time() - live_start_time,
+            'sampleImages': {
+              'clean': 'live_samples/latest_clean.jpg',
+              'watermarked': 'live_samples/latest_watermarked.jpg',
+              'attacked': 'live_samples/latest_attacked.jpg',
+            },
+          },
+        )
         with torch.no_grad():
           for batch in val_loader:
             clean = batch['image'].to(device)
@@ -256,6 +348,32 @@ def train_main(args) -> dict[str, Any]:
         val_conf /= max(val_batches, 1)
         writer.writerow([global_epoch, stage_name, total_loss / max(len(train_loader), 1), val_payload_acc, val_exact, val_conf])
         f.flush()
+        write_live_status(
+          run_dir,
+          status={
+            'phase': 'epoch_complete',
+            'updatedAt': utc_now_iso(),
+            'stage': stage_name,
+            'stageEpoch': stage_epoch_index + 1,
+            'stageEpochs': stage_epochs,
+            'epoch': global_epoch,
+            'batch': len(train_loader),
+            'batchesPerEpoch': max(len(train_loader), 1),
+            'batchPercent': 1.0,
+            'samplesSeen': global_epoch * max(len(train_loader), 1) * int(config.get('batch_size', 4)),
+            'lastLoss': total_loss / max(len(train_loader), 1),
+            'runningLoss': total_loss / max(len(train_loader), 1),
+            'elapsedSeconds': time.time() - live_start_time,
+            'valPayloadAcc': val_payload_acc,
+            'valExactMatch': val_exact,
+            'valConfidence': val_conf,
+            'sampleImages': {
+              'clean': 'live_samples/latest_clean.jpg',
+              'watermarked': 'live_samples/latest_watermarked.jpg',
+              'attacked': 'live_samples/latest_attacked.jpg',
+            },
+          },
+        )
 
         score = val_payload_acc + val_exact
         if score > best_score:
