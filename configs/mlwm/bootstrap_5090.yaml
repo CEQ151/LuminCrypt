@@ -11,6 +11,8 @@ stages:
     epochs: 8
     freeze_encoder: false
     freeze_decoder: true
+    encoder_teacher_weight: 500.0
+    encoder_teacher_scale: 0.04
     attack_strength: clean
   hard_negative:
     enabled: false

@@ -88,6 +88,16 @@ def total_variation(torch_mod, image):
   )
 
 
+def fixed_residual_batch(torch_mod, bits, height: int, width: int, scale: float, device):
+  return torch_mod.stack(
+    [
+      build_fixed_residual_map(sample, height, width, scale).squeeze(0)
+      for sample in bits
+    ],
+    dim=0,
+  ).to(device)
+
+
 def attack_batch(torch_mod, watermarked, attack_cfg, stage_strength: str):
   if stage_strength in {'clean', 'none', 'off'}:
     return watermarked
@@ -242,11 +252,14 @@ def train_main(args) -> dict[str, Any]:
 
           with torch.cuda.amp.autocast(enabled=scaler.is_enabled()):
             if freeze_encoder:
-              residual = torch.stack(
-                [build_fixed_residual_map(sample, clean.shape[-2], clean.shape[-1], float(stage_cfg.get('fixed_residual_scale', 0.02))).squeeze(0)
-                 for sample in bits],
-                dim=0,
-              ).to(device)
+              residual = fixed_residual_batch(
+                torch,
+                bits,
+                clean.shape[-2],
+                clean.shape[-1],
+                float(stage_cfg.get('fixed_residual_scale', 0.02)),
+                device,
+              )
             else:
               residual = encoder(clean, bits)
 
@@ -257,6 +270,18 @@ def train_main(args) -> dict[str, Any]:
             image_loss = mse(watermarked, clean) + 0.3 * (1.0 - torch_ssim(torch, watermarked, clean))
             residual_l2 = residual.pow(2).mean()
             residual_tv = total_variation(torch, residual)
+            teacher_loss = torch.zeros((), device=device)
+            teacher_weight = float(stage_cfg.get('encoder_teacher_weight', 0.0))
+            if teacher_weight > 0.0 and not freeze_encoder:
+              teacher_residual = fixed_residual_batch(
+                torch,
+                bits,
+                clean.shape[-2],
+                clean.shape[-1],
+                float(stage_cfg.get('encoder_teacher_scale', stage_cfg.get('fixed_residual_scale', 0.02))),
+                device,
+              )
+              teacher_loss = mse(residual, teacher_residual)
             bit_correctness = ((logits.detach() >= 0) == (bits >= 0.5)).float().mean(dim=1, keepdim=True)
             confidence_loss = mse(torch.sigmoid(confidence), bit_correctness)
             loss = (
@@ -264,6 +289,7 @@ def train_main(args) -> dict[str, Any]:
               float(loss_cfg.get('image_weight', 1.0)) * image_loss +
               float(loss_cfg.get('residual_weight', 0.1)) * residual_l2 +
               float(loss_cfg.get('tv_weight', 0.05)) * residual_tv +
+              teacher_weight * teacher_loss +
               0.1 * confidence_loss
             ) / grad_accum
 
@@ -278,6 +304,7 @@ def train_main(args) -> dict[str, Any]:
             batches_per_epoch = max(len(train_loader), 1)
             completed_batches = batch_index + 1
             samples_seen = ((global_epoch - 1) * batches_per_epoch + completed_batches) * int(config.get('batch_size', 4))
+            train_bit_acc = float(((logits.detach() >= 0) == (bits >= 0.5)).float().mean().item())
             write_live_status(
               run_dir,
               status={
@@ -293,6 +320,7 @@ def train_main(args) -> dict[str, Any]:
                 'samplesSeen': samples_seen,
                 'lastLoss': last_loss,
                 'runningLoss': total_loss / completed_batches,
+                'trainBitAcc': train_bit_acc,
                 'elapsedSeconds': time.time() - live_start_time,
                 'sampleImages': {
                   'clean': 'live_samples/latest_clean.jpg',
@@ -339,11 +367,14 @@ def train_main(args) -> dict[str, Any]:
           for batch in val_loader:
             clean = batch['image'].to(device)
             bits = batch['bits'].to(device)
-            residual = encoder(clean, bits) if not freeze_encoder else torch.stack(
-              [build_fixed_residual_map(sample, clean.shape[-2], clean.shape[-1], float(stage_cfg.get('fixed_residual_scale', 0.02))).squeeze(0)
-               for sample in bits],
-              dim=0,
-            ).to(device)
+            residual = encoder(clean, bits) if not freeze_encoder else fixed_residual_batch(
+              torch,
+              bits,
+              clean.shape[-2],
+              clean.shape[-1],
+              float(stage_cfg.get('fixed_residual_scale', 0.02)),
+              device,
+            )
             watermarked = torch.clamp(clean + residual, 0.0, 1.0)
             attacked = attack_batch(torch, watermarked, attack_cfg, str(stage_cfg.get('attack_strength', 'medium'))).to(device)
             logits, confidence = decoder(attacked)
