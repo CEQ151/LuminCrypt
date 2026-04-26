@@ -190,7 +190,11 @@ def train_main(args) -> dict[str, Any]:
   )
 
   device = torch.device(config.get('device', 'cuda') if torch.cuda.is_available() else 'cpu')
-  encoder, decoder = build_models(payload_bits=256)
+  model_cfg = config.get('model', {})
+  encoder, decoder = build_models(
+    payload_bits=int(config.get('payload_bits', 256)),
+    residual_scale=float(model_cfg.get('residual_scale', 8.0 / 255.0)),
+  )
   encoder.to(device)
   decoder.to(device)
   optimizer = torch.optim.AdamW(
