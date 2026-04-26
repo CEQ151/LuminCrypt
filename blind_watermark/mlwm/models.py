@@ -109,6 +109,8 @@ if nn is not None:
   class DecoderNet(nn.Module):
     def __init__(self, payload_bits: int = 256) -> None:
       super().__init__()
+      if payload_bits != 256:
+        raise ValueError('DecoderNet v1 expects a 16x16 payload grid')
       self.payload_bits = payload_bits
       self.features = nn.Sequential(
         ConvBlock(3, 32),
@@ -118,20 +120,26 @@ if nn is not None:
         ConvBlock(64, 96),
         nn.MaxPool2d(2),
         ConvBlock(96, 128),
-        nn.AdaptiveAvgPool2d((1, 1)),
       )
-      self.fc = nn.Sequential(
+      self.spatial_pool = nn.AdaptiveAvgPool2d((16, 16))
+      self.payload_head = nn.Sequential(
+        nn.Conv2d(128, 64, 3, padding=1),
+        nn.GELU(),
+        nn.Conv2d(64, 1, 1),
+      )
+      self.confidence_head = nn.Sequential(
+        nn.AdaptiveAvgPool2d((1, 1)),
         nn.Flatten(),
         nn.Linear(128, 256),
         nn.GELU(),
+        nn.Linear(256, 1),
       )
-      self.payload_head = nn.Linear(256, payload_bits)
-      self.confidence_head = nn.Linear(256, 1)
 
     def forward(self, image):
       feat = self.features(image)
-      hidden = self.fc(feat)
-      return self.payload_head(hidden), self.confidence_head(hidden)
+      spatial = self.spatial_pool(feat)
+      logits = self.payload_head(spatial).flatten(1)
+      return logits, self.confidence_head(feat)
 
 
   def build_models(payload_bits: int = 256, residual_scale: float = 8.0 / 255.0):
