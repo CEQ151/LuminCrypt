@@ -17,6 +17,10 @@ extraResources:
     to: bin/
     filter:
       - '**/*'
+  - from: resources/models/
+    to: models/
+    filter:
+      - '**/*'
 win:
   signAndEditExecutable: false
   executableName: LuminCrypt

@@ -3,3 +3,4 @@ opencv-python
 scipy>=1.7.0
 reedsolo>=0.6.0
 setuptools
+onnxruntime>=1.20.0

@@ -1,0 +1,5 @@
+numpy>=1.26.0
+opencv-python>=4.9.0
+scipy>=1.11.0
+reedsolo>=1.7.0
+onnxruntime>=1.20.0

@@ -4,6 +4,7 @@ out
 .DS_Store
 .eslintcache
 *.log*
+
 # PyInstaller output (pre-built bwm_helper executable, generated via npm run build:python)
 resources/bin/
 build/
@@ -28,12 +29,27 @@ __pycache__/
 *.pyd
 .pytest_cache/
 .mypy_cache/
+.venv*/
+.ruff_cache/
+.hypothesis/
 
 # Build/cache artifacts
 coverage/
 *.tsbuildinfo
 tmp/
 temp/
+artifacts/mlwm_v1/runs/
+artifacts/mlwm_v1/tensorboard/
+artifacts/mlwm_v1/tmp/
+artifacts/promoted/**/*.tmp
+artifacts/promoted/**/*.log
+resources/models/neural_wm/*.tmp
+resources/models/neural_wm/*.pt
+resources/models/neural_wm/*.ckpt
+resources/models/neural_wm/*.safetensors
+resources/models/neural_wm/*.bin
+data/
+datasets/
 
 # Test images
-blind_watermark/测试图*.png
+blind_watermark/濞村鐦崶?.png

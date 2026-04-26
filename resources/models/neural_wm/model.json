@@ -1,0 +1,26 @@
+{
+  "modelVersion": "mlwm-v1-untrained",
+  "status": "pending-training",
+  "engine": "neural",
+  "trainingConfigId": null,
+  "datasetManifestHash": null,
+  "exportTime": null,
+  "gitCommit": null,
+  "encoder": {
+    "path": "encoder.onnx",
+    "sha256": null
+  },
+  "decoder": {
+    "path": "decoder.onnx",
+    "sha256": null
+  },
+  "benchmarkSummary": {
+    "cleanExactMatch": null,
+    "jpegQ75": null,
+    "jpegQ50": null,
+    "webpQ50": null,
+    "resizeHalf": null,
+    "crop10pct": null,
+    "rotation3degJpeg75": null
+  }
+}

@@ -30,6 +30,7 @@ Architecture
 Dependencies: numpy, opencv-python, scipy, reedsolo
 """
 
+import os
 import numpy as np
 import cv2
 from scipy.fft import fft2, ifft2, fftshift, ifftshift
@@ -81,6 +82,20 @@ TEMPLATE_RING_BANDS = [
 # v2 compat constants
 _V2_RS_NSYM = 20
 _V2_REDUNDANCY = 3
+RWM_VERSION = '3.1.0'
+NEURAL_MAX_TEXT_BYTES = 16
+NEURAL_PROFILES = {
+    'balanced': {
+        'residual_strength': 1.0,
+        'template_strength': 0.008,
+        'template_peaks': 96,
+    },
+    'aggressive': {
+        'residual_strength': 1.35,
+        'template_strength': 0.012,
+        'template_peaks': 128,
+    },
+}
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -340,7 +355,7 @@ def _count_available_blocks(h, w, margin_ratio):
 
 # ─── Public API ───────────────────────────────────────────────────────────────
 
-def embed_watermark(img, text, password=1, quality='balanced', self_check=True):
+def embed_watermark_legacy(img, text, password=1, quality='balanced', self_check=True):
     if quality not in QUALITY:
         raise ValueError(f'quality must be one of {list(QUALITY.keys())}')
     cfg = QUALITY[quality]
@@ -403,7 +418,7 @@ def embed_watermark(img, text, password=1, quality='balanced', self_check=True):
     # Self-check: verify watermark can be extracted from the output
     if self_check:
         try:
-            extracted = extract_watermark(out, password, quality)
+            extracted = extract_watermark_legacy(out, password, quality)
             if extracted != text:
                 raise ValueError('self-check mismatch')
         except Exception:
@@ -411,13 +426,13 @@ def embed_watermark(img, text, password=1, quality='balanced', self_check=True):
             current_idx = quality_order.index(quality)
             if current_idx < len(quality_order) - 1:
                 upgraded = quality_order[current_idx + 1]
-                return embed_watermark(img if alpha is None else cv2.merge([img, alpha]),
-                                       text, password, upgraded, self_check=False)
+                return embed_watermark_legacy(img if alpha is None else cv2.merge([img, alpha]),
+                                              text, password, upgraded, self_check=False)
 
     return out
 
 
-def extract_watermark(img, password=1, quality='balanced'):
+def extract_watermark_legacy(img, password=1, quality='balanced'):
     if quality not in QUALITY:
         quality = 'balanced'
 
@@ -499,6 +514,241 @@ def extract_watermark(img, password=1, quality='balanced'):
     raise ValueError('No valid watermark found in image')
 
 
+def _resolve_neural_profile(quality):
+    if quality == 'robust':
+        return 'aggressive'
+    return 'balanced'
+
+
+def _center_square(image):
+    h, w = image.shape[:2]
+    edge = min(h, w)
+    y0 = max(0, (h - edge) // 2)
+    x0 = max(0, (w - edge) // 2)
+    return image[y0:y0 + edge, x0:x0 + edge]
+
+
+def _rectify_neural_image(img, password):
+    gray_orig = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY).astype(np.float64)
+    h, w = gray_orig.shape
+    sd = _seed(password)
+    best = {'angle': 0.0, 'scale': 1.0, 'confidence': 0.0, 'peaks': 64}
+    for num_peaks in [128, 96, 64]:
+        angle, scale, conf = _detect_transform(gray_orig, sd, num_peaks)
+        if conf > best['confidence']:
+            best = {'angle': float(angle), 'scale': float(scale), 'confidence': float(conf), 'peaks': int(num_peaks)}
+    corrected = img[:, :, :3]
+    if best['confidence'] > 4.0 and (abs(best['angle']) > 0.2 or abs(best['scale'] - 1.0) > 0.01):
+        matrix = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), -best['angle'], 1.0 / max(best['scale'], 1e-3))
+        corrected = cv2.warpAffine(corrected, matrix, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    return corrected, best
+
+
+def _build_neural_views(corrected):
+    rgb = cv2.cvtColor(corrected[:, :, :3], cv2.COLOR_BGR2RGB)
+    center_crop = _center_square(rgb)
+    center_crop = cv2.resize(center_crop, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_CUBIC)
+    padded = cv2.copyMakeBorder(rgb, 24, 24, 24, 24, borderType=cv2.BORDER_REFLECT)
+    padded = cv2.resize(padded, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_CUBIC)
+    return [rgb, center_crop, padded]
+
+
+def _legacy_embed_response(image, quality, requested_engine, fallback_reason=None):
+    diagnostics = {
+        'quality': quality,
+        'fallbackReason': fallback_reason,
+    }
+    return {
+        'ok': True,
+        'image': image,
+        'engine_used': 'legacy',
+        'fallback_used': requested_engine != 'legacy',
+        'quality_used': quality,
+        'confidence': 1.0,
+        'diagnostics': diagnostics,
+    }
+
+
+def _legacy_extract_response(text, quality, requested_engine, fallback_reason=None):
+    diagnostics = {
+        'quality': quality,
+        'fallbackReason': fallback_reason,
+    }
+    return {
+        'ok': True,
+        'wm': text,
+        'engine_used': 'legacy',
+        'fallback_used': requested_engine != 'legacy',
+        'confidence': 1.0,
+        'diagnostics': diagnostics,
+    }
+
+
+def _neural_embed_impl(img, text, password=1, quality='balanced', models_dir=None, self_check=True):
+    if len(text.encode('utf-8')) > NEURAL_MAX_TEXT_BYTES:
+        raise ValueError(f'Neural watermark supports up to {NEURAL_MAX_TEXT_BYTES} UTF-8 bytes')
+    try:
+        from blind_watermark.mlwm.codec import encode_text_payload
+        from blind_watermark.mlwm.infer import NeuralRuntimeUnavailable, neural_encode_residual, apply_neural_residual
+    except ImportError:
+        from mlwm.codec import encode_text_payload
+        from mlwm.infer import NeuralRuntimeUnavailable, neural_encode_residual, apply_neural_residual
+
+    profile_name = _resolve_neural_profile(quality)
+    profile = NEURAL_PROFILES[profile_name]
+    alpha = img[:, :, 3].copy() if img.ndim == 3 and img.shape[2] == 4 else None
+    base = img[:, :, :3] if alpha is not None else img.copy()
+    payload = encode_text_payload(text)
+    rgb = cv2.cvtColor(base, cv2.COLOR_BGR2RGB)
+    try:
+        encoded = neural_encode_residual(rgb, payload.bits, models_dir=models_dir, use_cuda=False)
+    except NeuralRuntimeUnavailable:
+        raise
+    rgb_watermarked = apply_neural_residual(rgb, encoded['residual'], strength=profile['residual_strength'])
+    out = cv2.cvtColor(rgb_watermarked, cv2.COLOR_RGB2BGR).astype(np.float64)
+
+    gray = cv2.cvtColor(out.astype(np.uint8), cv2.COLOR_BGR2GRAY).astype(np.float64)
+    gray_sync = _embed_template(gray, _seed(password), profile['template_strength'], profile['template_peaks'])
+    total_diff = gray_sync - gray
+    for c in range(3):
+        out[:, :, c] += total_diff
+    out = np.clip(np.round(out), 0, 255).astype(np.uint8)
+
+    if alpha is not None:
+        out = cv2.merge([out, alpha])
+
+    diagnostics = {
+        'profile': profile_name,
+        'payloadBytes': len(payload.text_bytes),
+        'modelVersion': encoded.get('modelVersion'),
+        'modelsDir': models_dir,
+    }
+
+    if self_check:
+        extracted = _neural_extract_impl(out, password=password, quality=quality, models_dir=models_dir)
+        if not extracted.get('ok') or extracted.get('wm') != text:
+            raise ValueError('Neural self-check mismatch')
+
+    return {
+        'ok': True,
+        'image': out,
+        'engine_used': 'neural',
+        'fallback_used': False,
+        'quality_used': profile_name,
+        'confidence': 1.0,
+        'diagnostics': diagnostics,
+    }
+
+
+def _neural_extract_impl(img, password=1, quality='balanced', models_dir=None):
+    try:
+        from blind_watermark.mlwm.infer import NeuralRuntimeUnavailable, neural_decode_views
+    except ImportError:
+        from mlwm.infer import NeuralRuntimeUnavailable, neural_decode_views
+
+    corrected, geo = _rectify_neural_image(img[:, :, :3] if img.ndim == 3 else img, password)
+    views = _build_neural_views(corrected)
+    try:
+        decoded = neural_decode_views(views, models_dir=models_dir, use_cuda=False)
+    except NeuralRuntimeUnavailable:
+        raise
+
+    confidence = float(decoded.get('confidence', decoded.get('bitConfidence', 0.0)))
+    return {
+        'ok': True,
+        'wm': decoded['text'],
+        'engine_used': 'neural',
+        'fallback_used': False,
+        'confidence': confidence,
+        'diagnostics': {
+            'profile': _resolve_neural_profile(quality),
+            'bitConfidence': float(decoded.get('bitConfidence', 0.0)),
+            'decodeStrategy': decoded.get('strategy'),
+            'geometricCorrection': geo,
+            'attemptIndex': decoded.get('attemptIndex'),
+            'attempts': decoded.get('attempts'),
+            'modelVersion': decoded.get('manifest', {}).get('modelVersion'),
+            'modelsDir': models_dir,
+        },
+    }
+
+
+def embed_watermark(img, text, password=1, quality='balanced', engine='auto', models_dir=None, self_check=True):
+    requested_engine = engine if engine in ('auto', 'legacy', 'neural') else 'auto'
+    text_bytes = text.encode('utf-8')
+    if requested_engine == 'legacy':
+        legacy = embed_watermark_legacy(img, text, password=password, quality=quality, self_check=self_check)
+        return _legacy_embed_response(legacy, quality, requested_engine)
+
+    neural_allowed = len(text_bytes) <= NEURAL_MAX_TEXT_BYTES
+    large_enough = min(img.shape[:2]) >= 512 if hasattr(img, 'shape') else False
+
+    if requested_engine == 'neural' and not neural_allowed:
+        return {
+            'ok': False,
+            'error': f'Neural watermark supports up to {NEURAL_MAX_TEXT_BYTES} UTF-8 bytes',
+            'engine_used': 'neural',
+            'fallback_used': False,
+        }
+
+    if requested_engine == 'auto' and (not neural_allowed or not large_enough):
+        reason = 'payload-too-long' if not neural_allowed else 'image-too-small-for-neural-auto'
+        legacy = embed_watermark_legacy(img, text, password=password, quality=quality, self_check=self_check)
+        return _legacy_embed_response(legacy, quality, requested_engine, reason)
+
+    try:
+        return _neural_embed_impl(
+            img,
+            text,
+            password=password,
+            quality=quality,
+            models_dir=models_dir,
+            self_check=self_check,
+        )
+    except Exception as exc:
+        if requested_engine == 'neural':
+            return {
+                'ok': False,
+                'error': str(exc),
+                'engine_used': 'neural',
+                'fallback_used': False,
+            }
+        legacy = embed_watermark_legacy(img, text, password=password, quality=quality, self_check=self_check)
+        return _legacy_embed_response(legacy, quality, requested_engine, f'neural-failed:{exc}')
+
+
+def extract_watermark(img, password=1, quality='balanced', engine='auto', models_dir=None):
+    requested_engine = engine if engine in ('auto', 'legacy', 'neural') else 'auto'
+    if requested_engine == 'legacy':
+        text = extract_watermark_legacy(img, password=password, quality=quality)
+        return _legacy_extract_response(text, quality, requested_engine)
+
+    try:
+        return _neural_extract_impl(img, password=password, quality=quality, models_dir=models_dir)
+    except Exception as exc:
+        if requested_engine == 'neural':
+            return {
+                'ok': False,
+                'error': str(exc),
+                'engine_used': 'neural',
+                'fallback_used': False,
+            }
+        try:
+            text = extract_watermark_legacy(img, password=password, quality=quality)
+            return _legacy_extract_response(text, quality, requested_engine, f'neural-failed:{exc}')
+        except Exception as legacy_exc:
+            return {
+                'ok': False,
+                'error': str(legacy_exc),
+                'engine_used': 'legacy',
+                'fallback_used': True,
+                'diagnostics': {
+                    'fallbackReason': f'neural-failed:{exc}',
+                    'legacyError': str(legacy_exc),
+                },
+            }
+
+
 def _try_extract_single_with_seed(gray, sd, quality_name, rs_nsym, redundancy,
                                    margin_ratio, num_peaks):
     """Like _try_extract_single but uses sd directly (without +1 offset for DCT seed)."""
@@ -526,11 +776,26 @@ def _try_extract_single_with_seed(gray, sd, quality_name, rs_nsym, redundancy,
 
 
 def check_dependencies():
-    res = {'ok': True, 'version': '3.0.0', 'missing': []}
+    res = {'ok': True, 'version': RWM_VERSION, 'missing': []}
     for m in ['numpy', 'cv2', 'scipy', 'reedsolo']:
         try:
             __import__(m)
         except ImportError:
             res['ok'] = False
             res['missing'].append(m)
+    try:
+        try:
+            from blind_watermark.mlwm.infer import probe_runtime
+        except ImportError:
+            from mlwm.infer import probe_runtime
+        status = probe_runtime(os.environ.get('LUMINCRYPT_MLWM_MODELS_DIR'))
+        res['neuralRuntimeAvailable'] = bool(status.runtime_available)
+        res['neuralModelsAvailable'] = bool(status.models_available)
+        res['neuralReady'] = bool(status.ready)
+        res['neuralModelVersion'] = status.manifest.get('modelVersion')
+    except Exception:
+        res['neuralRuntimeAvailable'] = False
+        res['neuralModelsAvailable'] = False
+        res['neuralReady'] = False
+        res['neuralModelVersion'] = None
     return res
