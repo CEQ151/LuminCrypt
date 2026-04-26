@@ -31,6 +31,7 @@ class PrepareDatasetTests(unittest.TestCase):
       min_size=512,
       seed=1,
       copy_mode='copy',
+      clean=True,
     )
 
     self.assertEqual(manifest['counts']['total'], 1)

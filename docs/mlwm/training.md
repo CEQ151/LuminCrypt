@@ -41,11 +41,19 @@ Use the dataset preparation helper when importing images from one or more local
 directories:
 
 ```bash
-.venv-ml\Scripts\python.exe -m blind_watermark.mlwm.prepare_dataset --source D:\images\natural --out-dir data --min-size 512 --val-ratio 0.1 --copy-mode copy
+.venv-ml\Scripts\python.exe -m blind_watermark.mlwm.prepare_dataset --source D:\images\natural --out-dir data --min-size 512 --val-ratio 0.1 --copy-mode copy --clean
 ```
 
 The helper filters unreadable or small images, de-duplicates by SHA-256, writes
 `data/dataset_manifest.json`, and leaves raw datasets outside Git.
+
+Unsplash Lite ships metadata first. Download resized image files from
+`photos.csv000`, then prepare train/val directories:
+
+```bash
+.venv-ml\Scripts\python.exe -m blind_watermark.mlwm.download_unsplash_lite --photos-file C:\Users\Ha183\Downloads\Compressed\unsplash-research-dataset-lite-latest\photos.csv000 --out-dir data\unsplash_lite_raw --limit 5000 --width 1024 --quality 85 --workers 8
+.venv-ml\Scripts\python.exe -m blind_watermark.mlwm.prepare_dataset --source data\unsplash_lite_raw --out-dir data --min-size 512 --val-ratio 0.1 --copy-mode hardlink --clean
+```
 
 ## Smoke run
 

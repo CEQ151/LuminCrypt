@@ -80,6 +80,7 @@ def prepare_dataset(
   limit: int | None = None,
   seed: int = 20260426,
   copy_mode: str = 'copy',
+  clean: bool = False,
 ) -> dict:
   if not 0.0 < val_ratio < 0.5:
     raise ValueError('val_ratio must be between 0 and 0.5')
@@ -91,6 +92,10 @@ def prepare_dataset(
   out = Path(out_dir)
   train_dir = out / 'train_images'
   val_dir = out / 'val_images'
+  if clean:
+    for target_dir in (train_dir, val_dir):
+      if target_dir.exists():
+        shutil.rmtree(target_dir)
   train_dir.mkdir(parents=True, exist_ok=True)
   val_dir.mkdir(parents=True, exist_ok=True)
 
@@ -134,6 +139,7 @@ def prepare_dataset(
     'minSize': min_size,
     'valRatio': val_ratio,
     'copyMode': copy_mode,
+    'clean': clean,
     'rejected': rejected,
     'counts': {
       'train': len(train_records),
@@ -166,6 +172,7 @@ def main() -> None:
   parser.add_argument('--limit', type=int)
   parser.add_argument('--seed', type=int, default=20260426)
   parser.add_argument('--copy-mode', choices=['copy', 'hardlink'], default='copy')
+  parser.add_argument('--clean', action='store_true', help='Remove existing train_images/val_images before preparing.')
   args = parser.parse_args()
 
   manifest = prepare_dataset(
@@ -176,6 +183,7 @@ def main() -> None:
     limit=args.limit,
     seed=args.seed,
     copy_mode=args.copy_mode,
+    clean=args.clean,
   )
   print(json.dumps(manifest['counts'], indent=2, sort_keys=True))
 
