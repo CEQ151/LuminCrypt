@@ -14,6 +14,7 @@ FRAME_BYTES = 24
 RS_NSYM = 8
 ENCODED_BYTES = FRAME_BYTES + RS_NSYM
 PAYLOAD_BITS = ENCODED_BYTES * 8
+WHITENING_SEED = 0x4d4c574d
 
 
 @dataclass
@@ -24,6 +25,14 @@ class PayloadEnvelope:
   encoded: bytes
   bits: np.ndarray
   flags: int = 0
+
+
+def _whitening_mask() -> np.ndarray:
+  rng = np.random.default_rng(WHITENING_SEED)
+  return rng.integers(0, 2, PAYLOAD_BITS, dtype=np.uint8).astype(np.float32)
+
+
+_PAYLOAD_WHITENING_MASK = _whitening_mask()
 
 
 def _rs_codec() -> reedsolo.RSCodec:
@@ -49,6 +58,18 @@ def bits_to_bytes(bits: np.ndarray | list[float] | list[int]) -> bytes:
       value = (value << 1) | int(flat[i * 8 + j] >= 0.5)
     out[i] = value
   return bytes(out)
+
+
+def whiten_payload_bits(bits: np.ndarray | list[float] | list[int]) -> np.ndarray:
+  flat = np.asarray(bits, dtype=np.float32).reshape(-1)
+  if flat.size != PAYLOAD_BITS:
+    raise ValueError(f'expected {PAYLOAD_BITS} payload bits, got {flat.size}')
+  hard = (flat >= 0.5).astype(np.float32)
+  return np.abs(hard - _PAYLOAD_WHITENING_MASK).astype(np.float32)
+
+
+def unwhiten_payload_bits(bits: np.ndarray | list[float] | list[int]) -> np.ndarray:
+  return whiten_payload_bits(bits)
 
 
 def build_frame(payload_bytes: bytes, *, flags: int = 0) -> bytes:
@@ -84,7 +105,7 @@ def encode_text_payload(text: str, *, flags: int = 0) -> PayloadEnvelope:
     text_bytes=payload_bytes,
     frame=frame,
     encoded=encoded,
-    bits=bytes_to_bits(encoded),
+    bits=whiten_payload_bits(bytes_to_bits(encoded)),
     flags=flags,
   )
 
@@ -115,9 +136,11 @@ def decode_frame(encoded_bytes: bytes) -> dict[str, Any]:
 
 
 def decode_payload_bits(bits: np.ndarray | list[float] | list[int]) -> dict[str, Any]:
-  encoded = bits_to_bytes(bits)
+  raw_bits = unwhiten_payload_bits(bits)
+  encoded = bits_to_bytes(raw_bits)
   result = decode_frame(encoded)
   result['encoded'] = encoded
+  result['rawBits'] = raw_bits
   return result
 
 

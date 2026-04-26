@@ -4,7 +4,7 @@ MLWM v1 adds a neural short-payload image watermark engine next to the legacy DC
 
 ## Core design
 
-- Payload is fixed to 256 bits after framing and RS encoding.
+- Payload is fixed to 256 bits after framing, RS encoding, and deterministic bit whitening.
 - Text payload is limited to 16 UTF-8 bytes.
 - Legacy frequency-domain synchronization remains the geometric anchor.
 - Neural embed/extract only handles payload recovery.
@@ -12,11 +12,11 @@ MLWM v1 adds a neural short-payload image watermark engine next to the legacy DC
 
 ## Runtime flow
 
-1. Encode short text into a fixed frame with CRC32 and RS parity.
+1. Encode short text into a fixed frame with CRC32 and RS parity, then whiten the 256 training bits.
 2. Run the encoder network to predict a residual map.
 3. Apply the residual to the image and inject the classical sync template.
 4. At extraction time, detect the sync template, rectify the image, and score several candidate views.
-5. Aggregate decoder logits, RS-decode, and CRC-check the payload.
+5. Aggregate decoder logits, unwhiten the bits, RS-decode, and CRC-check the payload.
 6. If neural decode fails in `auto`, fall back to the legacy engine.
 
 ## Training flow
