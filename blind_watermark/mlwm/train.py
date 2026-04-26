@@ -243,6 +243,7 @@ def train_main(args) -> dict[str, Any]:
     for stage_name, stage_cfg in iter_enabled_stages(config, args.stage):
       freeze_encoder = bool(stage_cfg.get('freeze_encoder', False))
       freeze_decoder = bool(stage_cfg.get('freeze_decoder', False))
+      use_fixed_residual = bool(stage_cfg.get('use_fixed_residual', freeze_encoder))
       stage_loss_cfg = deep_update(loss_cfg, stage_cfg.get('loss', {}))
       for parameter in encoder.parameters():
         parameter.requires_grad = not freeze_encoder
@@ -260,7 +261,7 @@ def train_main(args) -> dict[str, Any]:
           bits = batch['bits'].to(device)
 
           with torch.cuda.amp.autocast(enabled=scaler.is_enabled()):
-            if freeze_encoder:
+            if use_fixed_residual:
               residual = fixed_residual_batch(
                 torch,
                 bits,
@@ -377,14 +378,14 @@ def train_main(args) -> dict[str, Any]:
           for batch in val_loader:
             clean = batch['image'].to(device)
             bits = batch['bits'].to(device)
-            residual = encoder(clean, bits) if not freeze_encoder else fixed_residual_batch(
+            residual = fixed_residual_batch(
               torch,
               bits,
               clean.shape[-2],
               clean.shape[-1],
               float(stage_cfg.get('fixed_residual_scale', 0.02)),
               device,
-            )
+            ) if use_fixed_residual else encoder(clean, bits)
             watermarked = torch.clamp(clean + residual, 0.0, 1.0)
             attacked = attack_batch(torch, watermarked, attack_cfg, str(stage_cfg.get('attack_strength', 'medium'))).to(device)
             logits, confidence = decoder(attacked)
