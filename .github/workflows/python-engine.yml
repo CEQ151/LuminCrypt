@@ -6,7 +6,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  python-smoke:
     runs-on: ubuntu-latest
     name: Test robust watermark engine
     defaults:
@@ -52,3 +52,32 @@ jobs:
           assert extracted['wm'] == 'hello world', f'Roundtrip failed: {extracted}'
 
           print('All tests passed.')
+
+  mlwm-unit-tests:
+    runs-on: ubuntu-latest
+    name: MLWM unit tests
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r blind_watermark/requirements.txt
+      - name: Run MLWM unit tests
+        run: |
+          python -m unittest blind_watermark.tests.test_mlwm_codec blind_watermark.tests.test_mlwm_traceability
+
+  typecheck:
+    runs-on: ubuntu-latest
+    name: Typecheck
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run TypeScript checks
+        run: npm run typecheck
