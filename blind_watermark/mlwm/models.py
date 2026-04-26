@@ -70,7 +70,7 @@ if nn is not None:
         nn.Linear(128, 64),
         nn.GELU(),
       )
-      self.enc1 = ConvBlock(3, 32)
+      self.enc1 = ConvBlock(4, 32)
       self.enc2 = DownBlock(32, 64)
       self.enc3 = DownBlock(64, 96)
       self.enc4 = DownBlock(96, 128)
@@ -89,8 +89,13 @@ if nn is not None:
       latent = self.payload_mlp(payload_bits)
       return latent[:, :, None, None].expand(-1, -1, height, width)
 
+    def _payload_grid(self, payload_bits, height: int, width: int):
+      grid = payload_bits.view(-1, 1, 16, 16) * 2.0 - 1.0
+      return F.interpolate(grid, size=(height, width), mode='nearest')
+
     def forward(self, image, payload_bits):
-      x1 = self.enc1(image)
+      p0 = self._payload_grid(payload_bits, image.shape[-2], image.shape[-1])
+      x1 = self.enc1(torch.cat([image, p0], dim=1))
       x2 = self.enc2(x1)
       x3 = self.enc3(x2)
       x4 = self.enc4(x3)
