@@ -107,7 +107,8 @@ def attack_batch(torch_mod, watermarked, attack_cfg, stage_strength: str):
     attacked_rgb = apply_random_attack_chain(rgb, config=attack_cfg, strength=stage_strength)
     attacked_rgb = np.ascontiguousarray(attacked_rgb)
     attacked.append(torch_mod.from_numpy(attacked_rgb).permute(2, 0, 1).float() / 255.0)
-  return torch_mod.stack(attacked, dim=0)
+  attacked_tensor = torch_mod.stack(attacked, dim=0).to(watermarked.device)
+  return watermarked + (attacked_tensor - watermarked).detach()
 
 
 def save_checkpoint(path: Path, payload: dict[str, Any], torch_mod) -> None:
@@ -235,6 +236,7 @@ def train_main(args) -> dict[str, Any]:
     for stage_name, stage_cfg in iter_enabled_stages(config, args.stage):
       freeze_encoder = bool(stage_cfg.get('freeze_encoder', False))
       freeze_decoder = bool(stage_cfg.get('freeze_decoder', False))
+      stage_loss_cfg = deep_update(loss_cfg, stage_cfg.get('loss', {}))
       for parameter in encoder.parameters():
         parameter.requires_grad = not freeze_encoder
       for parameter in decoder.parameters():
@@ -285,10 +287,10 @@ def train_main(args) -> dict[str, Any]:
             bit_correctness = ((logits.detach() >= 0) == (bits >= 0.5)).float().mean(dim=1, keepdim=True)
             confidence_loss = mse(torch.sigmoid(confidence), bit_correctness)
             loss = (
-              float(loss_cfg.get('payload_weight', 5.0)) * payload_loss +
-              float(loss_cfg.get('image_weight', 1.0)) * image_loss +
-              float(loss_cfg.get('residual_weight', 0.1)) * residual_l2 +
-              float(loss_cfg.get('tv_weight', 0.05)) * residual_tv +
+              float(stage_loss_cfg.get('payload_weight', 5.0)) * payload_loss +
+              float(stage_loss_cfg.get('image_weight', 1.0)) * image_loss +
+              float(stage_loss_cfg.get('residual_weight', 0.1)) * residual_l2 +
+              float(stage_loss_cfg.get('tv_weight', 0.05)) * residual_tv +
               teacher_weight * teacher_loss +
               0.1 * confidence_loss
             ) / grad_accum

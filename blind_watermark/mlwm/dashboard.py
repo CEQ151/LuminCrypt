@@ -317,7 +317,7 @@ HTML = r'''<!doctype html>
       document.getElementById('gpuDetail').textContent = gpu.available ? `${gpu.name} · ${gpu.temperatureC}C · ${gpu.memoryUsedMB}/${gpu.memoryTotalMB} MB` : (gpu.error || '-');
       const batchPercent = liveStatus.batchPercent || 0;
       document.getElementById('batch').textContent = liveStatus.batch ? `batch ${liveStatus.batch}/${liveStatus.batchesPerEpoch}` : '-';
-      document.getElementById('liveStats').textContent = liveStatus.updatedAt ? `${liveStatus.phase || '-'} · loss ${fmtNum(liveStatus.runningLoss)} · samples ${liveStatus.samplesSeen || 0} · updated ${liveStatus.updatedAt}` : 'waiting for live batch telemetry';
+      document.getElementById('liveStats').textContent = liveStatus.updatedAt ? `${liveStatus.phase || '-'} · loss ${fmtNum(liveStatus.runningLoss)} · train acc ${fmtPct(liveStatus.trainBitAcc)} · samples ${liveStatus.samplesSeen || 0} · updated ${liveStatus.updatedAt}` : 'waiting for live batch telemetry';
       document.getElementById('batchBar').style.width = `${Math.min(100, batchPercent * 100)}%`;
       if (liveStatus.sampleImages) {
         const stamp = Date.now();
