@@ -10,6 +10,7 @@ stages:
     enabled: true
     epochs: 8
     freeze_encoder: false
+    freeze_decoder: true
     attack_strength: clean
   hard_negative:
     enabled: false

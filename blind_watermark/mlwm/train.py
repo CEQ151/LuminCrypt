@@ -89,6 +89,8 @@ def total_variation(torch_mod, image):
 
 
 def attack_batch(torch_mod, watermarked, attack_cfg, stage_strength: str):
+  if stage_strength in {'clean', 'none', 'off'}:
+    return watermarked
   attacked = []
   for sample in watermarked.detach().cpu().numpy():
     rgb = np.clip(np.round(sample.transpose(1, 2, 0) * 255.0), 0, 255).astype(np.uint8)
@@ -222,13 +224,16 @@ def train_main(args) -> dict[str, Any]:
 
     for stage_name, stage_cfg in iter_enabled_stages(config, args.stage):
       freeze_encoder = bool(stage_cfg.get('freeze_encoder', False))
+      freeze_decoder = bool(stage_cfg.get('freeze_decoder', False))
       for parameter in encoder.parameters():
         parameter.requires_grad = not freeze_encoder
+      for parameter in decoder.parameters():
+        parameter.requires_grad = not freeze_decoder
       stage_epochs = int(stage_cfg.get('epochs', 1))
       for stage_epoch_index in range(stage_epochs):
         global_epoch += 1
         encoder.train(not freeze_encoder)
-        decoder.train()
+        decoder.train(not freeze_decoder)
         total_loss = 0.0
         optimizer.zero_grad(set_to_none=True)
         for batch_index, batch in enumerate(train_loader):
