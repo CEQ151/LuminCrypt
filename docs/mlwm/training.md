@@ -37,6 +37,16 @@ Verify GPU availability:
 - Validation images go under `data/val_images`
 - No labels are required; payloads are generated synthetically per sample
 
+Use the dataset preparation helper when importing images from one or more local
+directories:
+
+```bash
+.venv-ml\Scripts\python.exe -m blind_watermark.mlwm.prepare_dataset --source D:\images\natural --out-dir data --min-size 512 --val-ratio 0.1 --copy-mode copy
+```
+
+The helper filters unreadable or small images, de-duplicates by SHA-256, writes
+`data/dataset_manifest.json`, and leaves raw datasets outside Git.
+
 ## Smoke run
 
 ```bash
