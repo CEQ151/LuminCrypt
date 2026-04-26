@@ -15,7 +15,7 @@ import yaml
 
 from .attacks import apply_random_attack_chain
 from .dataset import SyntheticPayloadImageDataset, attack_config_from_dict, build_fixed_residual_map
-from .metrics import bit_accuracy, exact_match_rate
+from .metrics import bit_accuracy, decode_success_rate, exact_match_rate
 from .models import build_models, require_torch
 from .traceability import build_run_manifest, git_snapshot, utc_now_iso, write_json
 
@@ -238,7 +238,7 @@ def train_main(args) -> dict[str, Any]:
 
   with metrics_path.open('w', encoding='utf-8', newline='') as f:
     writer = csv.writer(f)
-    writer.writerow(['epoch', 'stage', 'train_loss', 'val_payload_acc', 'val_exact_match', 'val_confidence'])
+    writer.writerow(['epoch', 'stage', 'train_loss', 'val_payload_acc', 'val_exact_match', 'val_decode_success', 'val_confidence'])
 
     for stage_name, stage_cfg in iter_enabled_stages(config, args.stage):
       freeze_encoder = bool(stage_cfg.get('freeze_encoder', False))
@@ -347,6 +347,7 @@ def train_main(args) -> dict[str, Any]:
         decoder.eval()
         val_payload_acc = 0.0
         val_exact = 0.0
+        val_decode_success = 0.0
         val_conf = 0.0
         val_batches = 0
         write_live_status(
@@ -387,15 +388,18 @@ def train_main(args) -> dict[str, Any]:
             watermarked = torch.clamp(clean + residual, 0.0, 1.0)
             attacked = attack_batch(torch, watermarked, attack_cfg, str(stage_cfg.get('attack_strength', 'medium'))).to(device)
             logits, confidence = decoder(attacked)
-            val_payload_acc += bit_accuracy(logits.detach().cpu().numpy(), bits.detach().cpu().numpy())
-            val_exact += exact_match_rate(logits.detach().cpu().numpy(), bits.detach().cpu().numpy())
+            logits_np = logits.detach().cpu().numpy()
+            val_payload_acc += bit_accuracy(logits_np, bits.detach().cpu().numpy())
+            val_exact += exact_match_rate(logits_np, bits.detach().cpu().numpy())
+            val_decode_success += decode_success_rate(logits_np, list(batch['text']))
             val_conf += float(torch.sigmoid(confidence).mean().item())
             val_batches += 1
 
         val_payload_acc /= max(val_batches, 1)
         val_exact /= max(val_batches, 1)
+        val_decode_success /= max(val_batches, 1)
         val_conf /= max(val_batches, 1)
-        writer.writerow([global_epoch, stage_name, total_loss / max(len(train_loader), 1), val_payload_acc, val_exact, val_conf])
+        writer.writerow([global_epoch, stage_name, total_loss / max(len(train_loader), 1), val_payload_acc, val_exact, val_decode_success, val_conf])
         f.flush()
         write_live_status(
           run_dir,
@@ -415,6 +419,7 @@ def train_main(args) -> dict[str, Any]:
             'elapsedSeconds': time.time() - live_start_time,
             'valPayloadAcc': val_payload_acc,
             'valExactMatch': val_exact,
+            'valDecodeSuccess': val_decode_success,
             'valConfidence': val_conf,
             'sampleImages': {
               'clean': 'live_samples/latest_clean.jpg',
@@ -424,7 +429,7 @@ def train_main(args) -> dict[str, Any]:
           },
         )
 
-        score = val_payload_acc + val_exact
+        score = val_payload_acc + val_exact + val_decode_success
         if score > best_score:
           best_score = score
           best_epoch = global_epoch
@@ -440,6 +445,7 @@ def train_main(args) -> dict[str, Any]:
               'benchmarkSummary': {
                 'valPayloadAcc': val_payload_acc,
                 'valExactMatch': val_exact,
+                'valDecodeSuccess': val_decode_success,
               },
             },
             torch,

@@ -273,7 +273,7 @@ HTML = r'''<!doctype html>
     <section class="card span12"><div class="label">Live Sample Stream</div><div class="value" id="batch">-</div><div class="small" id="liveStats">-</div><div class="bar"><div id="batchBar"></div></div><div class="film"><div class="frame"><span>clean</span><img id="imgClean" /></div><div class="frame"><span>watermarked</span><img id="imgWatermarked" /></div><div class="frame"><span>attacked</span><img id="imgAttacked" /></div></div></section>
     <section class="card span6"><div class="label">Accuracy</div><canvas id="accChart"></canvas></section>
     <section class="card span6"><div class="label">Loss</div><canvas id="lossChart"></canvas></section>
-    <section class="card span8"><div class="label">Recent Epochs</div><table><thead><tr><th>Epoch</th><th>Stage</th><th>Loss</th><th>Payload Acc</th><th>Exact</th><th>Confidence</th></tr></thead><tbody id="rows"></tbody></table></section>
+    <section class="card span8"><div class="label">Recent Epochs</div><table><thead><tr><th>Epoch</th><th>Stage</th><th>Loss</th><th>Payload Acc</th><th>Exact</th><th>Decode</th><th>Confidence</th></tr></thead><tbody id="rows"></tbody></table></section>
     <section class="card span4"><div class="label">Process</div><pre id="processes"></pre></section>
     <section class="card span6"><div class="label">stderr</div><pre id="stderr"></pre></section>
     <section class="card span6"><div class="label">stdout</div><pre id="stdout"></pre></section>
@@ -334,7 +334,7 @@ HTML = r'''<!doctype html>
       lossChart.data.labels = labels;
       lossChart.data.datasets[0].data = metrics.map(r => r.train_loss);
       lossChart.update();
-      document.getElementById('rows').innerHTML = metrics.slice(-12).reverse().map(r => `<tr><td>${r.epoch}</td><td>${r.stage}</td><td>${fmtNum(r.train_loss)}</td><td>${fmtPct(r.val_payload_acc)}</td><td>${fmtPct(r.val_exact_match)}</td><td>${fmtPct(r.val_confidence)}</td></tr>`).join('');
+      document.getElementById('rows').innerHTML = metrics.slice(-12).reverse().map(r => `<tr><td>${r.epoch}</td><td>${r.stage}</td><td>${fmtNum(r.train_loss)}</td><td>${fmtPct(r.val_payload_acc)}</td><td>${fmtPct(r.val_exact_match)}</td><td>${fmtPct(r.val_decode_success)}</td><td>${fmtPct(r.val_confidence)}</td></tr>`).join('');
       document.getElementById('processes').textContent = (data.processes || []).map(p => `pid=${p.pid} parent=${p.parentPid}\n${p.command}`).join('\n\n') || 'No training process detected.';
       document.getElementById('stderr').textContent = (data.logs && data.logs.stderr) || '';
       document.getElementById('stdout').textContent = (data.logs && data.logs.stdout) || '';

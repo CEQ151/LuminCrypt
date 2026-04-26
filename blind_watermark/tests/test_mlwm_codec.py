@@ -12,6 +12,7 @@ from blind_watermark.mlwm.codec import (
   encode_text_payload,
   unwhiten_payload_bits,
 )
+from blind_watermark.mlwm.metrics import decode_success_rate
 
 
 class CodecTests(unittest.TestCase):
@@ -42,6 +43,12 @@ class CodecTests(unittest.TestCase):
     raw_bits = unwhiten_payload_bits(envelope.bits)
     self.assertEqual(bits_to_bytes(raw_bits), envelope.encoded)
     self.assertTrue(np.array_equal(bytes_to_bits(encode_frame(envelope.frame)), raw_bits))
+
+  def test_decode_success_rate(self):
+    envelope = encode_text_payload('OK-42')
+    logits = (envelope.bits * 2.0 - 1.0) * 8.0
+    self.assertEqual(decode_success_rate(logits.reshape(1, -1), ['OK-42']), 1.0)
+    self.assertEqual(decode_success_rate(logits.reshape(1, -1), ['NOPE']), 0.0)
 
 
 if __name__ == '__main__':

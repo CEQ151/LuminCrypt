@@ -5,6 +5,8 @@ import math
 import cv2
 import numpy as np
 
+from .codec import decode_payload_bits
+
 
 def psnr(a: np.ndarray, b: np.ndarray) -> float:
   arr_a = np.asarray(a, dtype=np.float32)
@@ -50,3 +52,21 @@ def exact_match_rate(logits: np.ndarray, target_bits: np.ndarray) -> float:
   if predicted.ndim == 1:
     return float(np.all(predicted == targets))
   return float(np.mean(np.all(predicted == targets, axis=1)))
+
+
+def decode_success_rate(logits: np.ndarray, texts: list[str] | tuple[str, ...]) -> float:
+  logits = np.asarray(logits)
+  predicted = (logits >= 0).astype(np.float32)
+  if predicted.ndim == 1:
+    predicted = predicted.reshape(1, -1)
+  ok = 0
+  total = min(len(predicted), len(texts))
+  if total <= 0:
+    return 0.0
+  for bits, text in zip(predicted[:total], texts[:total]):
+    try:
+      decoded = decode_payload_bits(bits)
+    except Exception:
+      continue
+    ok += int(decoded.get('text') == text)
+  return float(ok / total)
