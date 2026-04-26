@@ -1,0 +1,47 @@
+extends: configs/mlwm/boost_5090.yaml
+optimizer:
+  lr: 0.00003
+  weight_decay: 0.00001
+stages:
+  warmup:
+    enabled: false
+  main:
+    enabled: false
+  hard_negative:
+    enabled: true
+    epochs: 30
+    freeze_encoder: false
+    freeze_decoder: false
+    attack_strength: medium
+    encoder_teacher_weight: 80.0
+    encoder_teacher_scale: 0.034
+    loss:
+      payload_weight: 18.0
+      image_weight: 0.5
+      tv_weight: 0.012
+      residual_weight: 0.015
+  finalize:
+    enabled: true
+    epochs: 10
+    freeze_encoder: false
+    freeze_decoder: false
+    attack_strength: medium
+    loss:
+      payload_weight: 14.0
+      image_weight: 0.75
+      tv_weight: 0.018
+      residual_weight: 0.025
+attack:
+  enabled_ops:
+    - crop
+    - screenshot_sim
+    - color_jitter
+  ops_per_sample:
+    min: 1
+    max: 2
+  crop_keep: [0.92, 1.0]
+  resize_scale: [0.75, 1.25]
+  jpeg_quality: [70, 95]
+  webp_quality: [70, 95]
+  gaussian_blur_sigma: [0.0, 0.4]
+  gaussian_noise_std: [0.0, 0.006]

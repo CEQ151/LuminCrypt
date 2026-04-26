@@ -10,6 +10,7 @@ import numpy as np
 
 @dataclass
 class AttackConfig:
+  enabled_ops: tuple[str, ...] | None = None
   ops_per_sample_min: int = 2
   ops_per_sample_max: int = 5
   jpeg_quality: tuple[int, int] = (30, 95)
@@ -26,7 +27,9 @@ class AttackConfig:
 
   @classmethod
   def from_dict(cls, data: dict[str, Any]) -> 'AttackConfig':
+    enabled_ops = data.get('enabled_ops')
     return cls(
+      enabled_ops=tuple(enabled_ops) if enabled_ops else None,
       ops_per_sample_min=int(data.get('ops_per_sample', {}).get('min', 2)),
       ops_per_sample_max=int(data.get('ops_per_sample', {}).get('max', 5)),
       jpeg_quality=tuple(data.get('jpeg_quality', (30, 95))),
@@ -214,7 +217,7 @@ def apply_random_attack_chain(
     return np.asarray(image, dtype=np.uint8).copy()
   local_rng = rng or random.Random()
   out = np.asarray(image, dtype=np.uint8).copy()
-  names = list(ATTACK_REGISTRY.keys())
+  names = list(config.enabled_ops or ATTACK_REGISTRY.keys())
   max_ops = config.ops_per_sample_max + (1 if strength == 'hard' else 0)
   min_ops = config.ops_per_sample_min if strength != 'mixed' else 1
   num_ops = local_rng.randint(min_ops, max_ops)
