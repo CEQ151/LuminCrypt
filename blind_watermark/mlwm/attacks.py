@@ -210,6 +210,8 @@ def apply_random_attack_chain(
   rng: random.Random | None = None,
   strength: str = 'medium',
 ) -> np.ndarray:
+  if strength in {'clean', 'none', 'off'}:
+    return np.asarray(image, dtype=np.uint8).copy()
   local_rng = rng or random.Random()
   out = np.asarray(image, dtype=np.uint8).copy()
   names = list(ATTACK_REGISTRY.keys())

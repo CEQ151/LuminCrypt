@@ -1,0 +1,17 @@
+extends: configs/mlwm/easy_5090.yaml
+stages:
+  warmup:
+    enabled: true
+    epochs: 3
+    freeze_encoder: true
+    fixed_residual_scale: 0.04
+    attack_strength: clean
+  main:
+    enabled: true
+    epochs: 8
+    freeze_encoder: false
+    attack_strength: clean
+  hard_negative:
+    enabled: false
+  finalize:
+    enabled: false
