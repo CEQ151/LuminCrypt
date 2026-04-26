@@ -47,6 +47,7 @@
     "mlwm:download-unsplash": "python -m blind_watermark.mlwm.download_unsplash_lite",
     "mlwm:export": "python -m blind_watermark.mlwm.export_onnx --config configs/mlwm/export.yaml",
     "mlwm:bench": "python -m blind_watermark.mlwm.bench",
+    "mlwm:dashboard": "python -m blind_watermark.mlwm.dashboard",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
