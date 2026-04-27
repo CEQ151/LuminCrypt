@@ -1,37 +1,6 @@
 {
-  "modelVersion": "mlwm-v1-alpha1",
-  "status": "ready",
-  "engine": "neural",
-  "imageSize": 512,
-  "trainedImageSize": 448,
-  "trainingConfigId": "56a62d8d8172c8e77c3c894c5ee2b6631a796a482a0638ef6e7db22a31508e93",
-  "datasetManifestHash": "66e398a984115421eb783c1bfeaa61140be7d0e482ef7850fcaabd3ec22c1136",
-  "exportTime": "2026-04-27T04:15:19+00:00",
-  "checkpoint": {
-    "path": "artifacts/mlwm_v1/runs/20260426T185428+0000_6107b38/best.ckpt",
-    "sha256": "d752bcc4708e7b74e661bafe2b95e4ac4f6d2e04da6edca918f49ac56792d9b5",
-    "bestEpoch": 18,
-    "bestMetric": 2.9676029265873014
-  },
-  "encoder": {
-    "path": "encoder.onnx",
-    "sha256": "8dbda9a72b42ad133f2e8cfe5a5e3c167b4a4073bab9ebde142b471429ff7a05"
-  },
-  "decoder": {
-    "path": "decoder.onnx",
-    "sha256": "55ca146d887f2acd1911e59b21d1a205e5971064e2ad1fd4986302de03c17a14"
-  },
-  "benchmarkSummary": {
-    "cleanDecodeSuccess": 1.0,
-    "mediumDecodeSuccess": 0.9921875,
-    "hardDecodeSuccess": 0.912326388888889,
-    "fullMediumDecodeSuccess": 0.9895833333333334,
-    "fullHardDecodeSuccess": 0.9772135416666666,
-    "fullHardExactMatch": 0.9231770833333334,
-    "fullHardPayloadAcc": 0.9978663126627604
-  },
-  "trainingGitCommit": "6107b38",
-  "exportGitCommit": "eae79611614f5cdde7958d1fd773010ca46cdd23",
+  "createdAt": "2026-04-27T04:10:42+00:00",
+  "validationSamples": 1497,
   "evaluations": {
     "clean": {
       "checkpoint": "artifacts/mlwm_v1/runs/20260426T185428+0000_6107b38/best.ckpt",
