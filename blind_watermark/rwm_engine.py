@@ -87,13 +87,15 @@ NEURAL_MAX_TEXT_BYTES = 16
 NEURAL_PROFILES = {
     'balanced': {
         'residual_strength': 1.0,
-        'template_strength': 0.008,
-        'template_peaks': 96,
+        'template_strength': 0.0,
+        'template_peaks': 0,
+        'sync_enabled': False,
     },
     'aggressive': {
         'residual_strength': 1.35,
-        'template_strength': 0.012,
-        'template_peaks': 128,
+        'template_strength': 0.0,
+        'template_peaks': 0,
+        'sync_enabled': False,
     },
 }
 
@@ -607,11 +609,12 @@ def _neural_embed_impl(img, text, password=1, quality='balanced', models_dir=Non
     rgb_watermarked = apply_neural_residual(rgb, encoded['residual'], strength=profile['residual_strength'])
     out = cv2.cvtColor(rgb_watermarked, cv2.COLOR_RGB2BGR).astype(np.float64)
 
-    gray = cv2.cvtColor(out.astype(np.uint8), cv2.COLOR_BGR2GRAY).astype(np.float64)
-    gray_sync = _embed_template(gray, _seed(password), profile['template_strength'], profile['template_peaks'])
-    total_diff = gray_sync - gray
-    for c in range(3):
-        out[:, :, c] += total_diff
+    if profile.get('sync_enabled', False) and profile.get('template_strength', 0.0) > 0.0:
+        gray = cv2.cvtColor(out.astype(np.uint8), cv2.COLOR_BGR2GRAY).astype(np.float64)
+        gray_sync = _embed_template(gray, _seed(password), profile['template_strength'], profile['template_peaks'])
+        total_diff = gray_sync - gray
+        for c in range(3):
+            out[:, :, c] += total_diff
     out = np.clip(np.round(out), 0, 255).astype(np.uint8)
 
     if alpha is not None:
@@ -646,7 +649,13 @@ def _neural_extract_impl(img, password=1, quality='balanced', models_dir=None):
     except ImportError:
         from mlwm.infer import NeuralRuntimeUnavailable, neural_decode_views
 
-    corrected, geo = _rectify_neural_image(img[:, :, :3] if img.ndim == 3 else img, password)
+    profile_name = _resolve_neural_profile(quality)
+    profile = NEURAL_PROFILES[profile_name]
+    if profile.get('sync_enabled', False):
+        corrected, geo = _rectify_neural_image(img[:, :, :3] if img.ndim == 3 else img, password)
+    else:
+        corrected = img[:, :, :3] if img.ndim == 3 else img
+        geo = {'angle': 0.0, 'scale': 1.0, 'confidence': 0.0, 'peaks': 0, 'syncEnabled': False}
     views = _build_neural_views(corrected)
     try:
         decoded = neural_decode_views(views, models_dir=models_dir, use_cuda=False)
@@ -661,7 +670,7 @@ def _neural_extract_impl(img, password=1, quality='balanced', models_dir=None):
         'fallback_used': False,
         'confidence': confidence,
         'diagnostics': {
-            'profile': _resolve_neural_profile(quality),
+            'profile': profile_name,
             'bitConfidence': float(decoded.get('bitConfidence', 0.0)),
             'decodeStrategy': decoded.get('strategy'),
             'geometricCorrection': geo,
