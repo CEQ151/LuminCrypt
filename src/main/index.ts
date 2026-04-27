@@ -1,5 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, clipboard } from 'electron'
-import { join, extname, normalize } from 'path'
+import { join, extname, normalize, parse } from 'path'
 import { writeFile, readFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import { spawn } from 'child_process'
@@ -8,8 +8,17 @@ import icon from '../../resources/icon.png?asset'
 
 let storeCache: Record<string, unknown> = {}
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['https:', 'http:'])
-const ALLOWED_QUALITY = new Set(['invisible', 'balanced', 'robust'])
+const ALLOWED_QUALITY = new Set([
+  'trace',
+  'faint',
+  'light',
+  'invisible',
+  'balanced',
+  'strong',
+  'robust'
+])
 const ALLOWED_ENGINE = new Set(['auto', 'legacy', 'neural'])
+const ALLOWED_PAYLOAD_MODE = new Set(['fingerprint64', 'text16'])
 const ALLOWED_IMG_EXT = new Set(['.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif'])
 const MAX_TEXT_PAYLOAD = 2_000_000
 const MAX_PDF_HTML_B64 = 10_000_000
@@ -27,8 +36,13 @@ function isSafeExternalUrl(raw: string): boolean {
 function isSafeAppNavigation(raw: string): boolean {
   try {
     const url = new URL(raw)
-    if (url.protocol === 'file:' || url.protocol === 'devtools:' || url.protocol === 'app:') return true
-    if (is.dev && (url.protocol === 'http:' || url.protocol === 'https:') && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')) {
+    if (url.protocol === 'file:' || url.protocol === 'devtools:' || url.protocol === 'app:')
+      return true
+    if (
+      is.dev &&
+      (url.protocol === 'http:' || url.protocol === 'https:') &&
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+    ) {
       return true
     }
     return false
@@ -38,7 +52,12 @@ function isSafeAppNavigation(raw: string): boolean {
 }
 
 function isValidPathInput(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0 && value.length <= 4096 && !value.includes('\0')
+  return (
+    typeof value === 'string' &&
+    value.trim().length > 0 &&
+    value.length <= 4096 &&
+    !value.includes('\0')
+  )
 }
 
 function isAllowedImagePath(pathLike: string): boolean {
@@ -90,8 +109,8 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false,
-    },
+      nodeIntegration: false
+    }
   })
 
   mainWindow.on('ready-to-show', () => {
@@ -148,6 +167,20 @@ function findBundledModelsDir(): string {
 }
 
 async function findPythonExe(): Promise<string | null> {
+  const localCandidates =
+    process.platform === 'win32'
+      ? [
+          join(app.getAppPath(), '.venv-ml', 'Scripts', 'python.exe'),
+          join(app.getAppPath(), '.venv', 'Scripts', 'python.exe')
+        ]
+      : [
+          join(app.getAppPath(), '.venv-ml', 'bin', 'python'),
+          join(app.getAppPath(), '.venv', 'bin', 'python')
+        ]
+  for (const candidate of localCandidates) {
+    if (existsSync(candidate)) return candidate
+  }
+
   if (process.platform === 'win32') {
     for (const cmd of ['python', 'python3', 'py']) {
       const resolved = await new Promise<string | null>((resolve) => {
@@ -180,8 +213,17 @@ async function findPythonExe(): Promise<string | null> {
 }
 
 type BwmRunner = { mode: 'exe'; exePath: string } | { mode: 'python'; python: string }
+type BackendStatus = Record<string, unknown> & { mode?: 'exe' | 'python'; python: string | null }
+
+let backendStatusCache: BackendStatus | null = null
+let backendWarmupPromise: Promise<BackendStatus> | null = null
+const batchProcesses = new Map<string, { cancel: () => boolean; cancelled: boolean }>()
 
 async function getRunner(): Promise<BwmRunner | null> {
+  if (is.dev) {
+    const python = await findPythonExe()
+    if (python) return { mode: 'python', python }
+  }
   const exePath = findBundledExe()
   if (exePath) return { mode: 'exe', exePath }
   const python = await findPythonExe()
@@ -189,20 +231,29 @@ async function getRunner(): Promise<BwmRunner | null> {
 }
 
 function bwmScriptPath(): string {
-  return is.dev ? join(app.getAppPath(), 'blind_watermark', 'bwm_helper.py') : join(process.resourcesPath, 'bwm_helper.py')
+  return is.dev
+    ? join(app.getAppPath(), 'blind_watermark', 'bwm_helper.py')
+    : join(process.resourcesPath, 'bwm_helper.py')
 }
 
-function runBwm(runner: BwmRunner, opts: Record<string, unknown>): Promise<Record<string, unknown>> {
+function runBwm(
+  runner: BwmRunner,
+  opts: Record<string, unknown>
+): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
     const spawnEnv = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' }
     const child =
       runner.mode === 'exe'
-        ? spawn(runner.exePath, ['--json-stdin'], { windowsHide: true, timeout: 180_000, env: spawnEnv })
+        ? spawn(runner.exePath, ['--json-stdin'], {
+            windowsHide: true,
+            timeout: 180_000,
+            env: spawnEnv
+          })
         : spawn(runner.python, [bwmScriptPath(), '--json-stdin'], {
             windowsHide: true,
             timeout: 180_000,
             env: spawnEnv,
-            cwd: is.dev ? join(app.getAppPath(), 'blind_watermark') : process.resourcesPath,
+            cwd: is.dev ? join(app.getAppPath(), 'blind_watermark') : process.resourcesPath
           })
 
     let stdout = ''
@@ -221,12 +272,148 @@ function runBwm(runner: BwmRunner, opts: Record<string, unknown>): Promise<Recor
       } catch {
         resolve({
           ok: false,
-          error: lastLine || stderr.trim() || `Process exited with code ${code}`,
+          error: lastLine || stderr.trim() || `Process exited with code ${code}`
         })
       }
     })
     child.on('error', (err) => {
       resolve({ ok: false, error: err.message })
+    })
+
+    child.stdin?.write(Buffer.from(JSON.stringify(opts), 'utf-8'))
+    child.stdin?.end()
+  })
+}
+
+async function probeBwmBackend(mode: 'check' | 'warmup' = 'check'): Promise<BackendStatus> {
+  const modelsDir = findBundledModelsDir()
+  const runner = await getRunner()
+  if (!runner) return { ok: false, mode: 'python', python: null, error: 'no-runner' }
+  const result = await runBwm(runner, { mode, models_dir: modelsDir })
+  const normalized = {
+    ...result,
+    mode: runner.mode,
+    python: runner.mode === 'python' ? runner.python : null
+  }
+  backendStatusCache = normalized
+  return normalized
+}
+
+function warmupBwmBackend(force = false): Promise<BackendStatus> {
+  if (!force && backendStatusCache) return Promise.resolve(backendStatusCache)
+  if (!force && backendWarmupPromise) return backendWarmupPromise
+  backendWarmupPromise = probeBwmBackend('warmup').finally(() => {
+    backendWarmupPromise = null
+  })
+  return backendWarmupPromise
+}
+
+function uniqueBatchOutputPath(
+  inputPath: string,
+  outputDir: string,
+  usedNames: Set<string>
+): string {
+  const parsed = parse(inputPath)
+  const safeStem =
+    parsed.name
+      .split('')
+      .map((char) => {
+        const code = char.charCodeAt(0)
+        return code <= 31 || '<>:"/\\|?*'.includes(char) ? '_' : char
+      })
+      .join('')
+      .slice(0, 180) || 'image'
+  let candidate = `${safeStem}_wm.png`
+  let suffix = 2
+  while (usedNames.has(candidate.toLowerCase()) || existsSync(join(outputDir, candidate))) {
+    candidate = `${safeStem}_wm_${suffix}.png`
+    suffix += 1
+  }
+  usedNames.add(candidate.toLowerCase())
+  return join(outputDir, candidate)
+}
+
+function runBwmBatch(
+  runner: BwmRunner,
+  opts: Record<string, unknown> & { batch_id: string },
+  sender: Electron.WebContents
+): Promise<Record<string, unknown>> {
+  return new Promise((resolve) => {
+    const spawnEnv = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' }
+    const child =
+      runner.mode === 'exe'
+        ? spawn(runner.exePath, ['--json-stdin'], {
+            windowsHide: true,
+            timeout: 30 * 60_000,
+            env: spawnEnv
+          })
+        : spawn(runner.python, [bwmScriptPath(), '--json-stdin'], {
+            windowsHide: true,
+            timeout: 30 * 60_000,
+            env: spawnEnv,
+            cwd: is.dev ? join(app.getAppPath(), 'blind_watermark') : process.resourcesPath
+          })
+    const batchState = {
+      cancelled: false,
+      cancel: (): boolean => {
+        batchState.cancelled = true
+        return child.kill()
+      }
+    }
+    batchProcesses.set(opts.batch_id, batchState)
+
+    let stdoutBuffer = ''
+    let stderr = ''
+    let finalPayload: Record<string, unknown> | null = null
+    const consumeLine = (line: string): void => {
+      if (!line.trim()) return
+      try {
+        const payload = JSON.parse(line) as Record<string, unknown>
+        if (payload.event === 'progress') {
+          sender.send('image-wm:batch-progress', payload)
+        } else if (payload.event === 'complete') {
+          finalPayload = payload
+          sender.send('image-wm:batch-progress', payload)
+        } else {
+          finalPayload = payload
+        }
+      } catch {
+        stderr += line + '\n'
+      }
+    }
+
+    child.stdout?.on('data', (d: Buffer) => {
+      stdoutBuffer += d.toString('utf8')
+      let newline = stdoutBuffer.indexOf('\n')
+      while (newline >= 0) {
+        const line = stdoutBuffer.slice(0, newline)
+        stdoutBuffer = stdoutBuffer.slice(newline + 1)
+        consumeLine(line)
+        newline = stdoutBuffer.indexOf('\n')
+      }
+    })
+    child.stderr?.on('data', (d: Buffer) => {
+      stderr += d.toString('utf8')
+    })
+    child.on('close', (code) => {
+      batchProcesses.delete(opts.batch_id)
+      consumeLine(stdoutBuffer)
+      if (finalPayload) return resolve(finalPayload)
+      resolve({
+        ok: false,
+        batchId: opts.batch_id,
+        failureCode: batchState.cancelled ? 'batch_cancelled' : 'batch_partial_failure',
+        error: stderr.trim() || `Process exited with code ${code}`
+      })
+    })
+    child.on('error', (err) => {
+      batchProcesses.delete(opts.batch_id)
+      resolve({
+        ok: false,
+        batchId: opts.batch_id,
+        failureCode: 'model_unavailable',
+        error: err.message
+      })
     })
 
     child.stdin?.write(Buffer.from(JSON.stringify(opts), 'utf-8'))
@@ -269,35 +456,39 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('clipboard:read', () => clipboard.readText())
 
-  ipcMain.handle('dialog:saveFile', async (_event, content: string, ext: 'json' | 'pdf', defaultName: string) => {
-    if (typeof content !== 'string' || content.length > MAX_TEXT_PAYLOAD) {
-      return { success: false, error: 'Invalid content payload' }
-    }
-    if (typeof defaultName !== 'string' || defaultName.length === 0 || defaultName.length > 255) {
-      return { success: false, error: 'Invalid file name' }
-    }
-    const win = BrowserWindow.getFocusedWindow()
-    if (!win) return { success: false, error: 'No window' }
+  ipcMain.handle(
+    'dialog:saveFile',
+    async (_event, content: string, ext: 'json' | 'pdf', defaultName: string) => {
+      if (typeof content !== 'string' || content.length > MAX_TEXT_PAYLOAD) {
+        return { success: false, error: 'Invalid content payload' }
+      }
+      if (typeof defaultName !== 'string' || defaultName.length === 0 || defaultName.length > 255) {
+        return { success: false, error: 'Invalid file name' }
+      }
+      const win = BrowserWindow.getFocusedWindow()
+      if (!win) return { success: false, error: 'No window' }
 
-    const filters = ext === 'json'
-      ? [{ name: 'JSON Report', extensions: ['json'] }]
-      : [{ name: 'PDF Report', extensions: ['pdf'] }]
+      const filters =
+        ext === 'json'
+          ? [{ name: 'JSON Report', extensions: ['json'] }]
+          : [{ name: 'PDF Report', extensions: ['pdf'] }]
 
-    const { canceled, filePath } = await dialog.showSaveDialog(win, {
-      title: 'Save Report',
-      defaultPath: defaultName,
-      filters,
-    })
-    if (canceled || !filePath) return { success: false, error: 'Canceled' }
+      const { canceled, filePath } = await dialog.showSaveDialog(win, {
+        title: 'Save Report',
+        defaultPath: defaultName,
+        filters
+      })
+      if (canceled || !filePath) return { success: false, error: 'Canceled' }
 
-    try {
-      if (ext === 'json') await writeFile(filePath, content, 'utf-8')
-      else await writeFile(filePath, Buffer.from(content, 'base64'))
-      return { success: true, filePath }
-    } catch (err) {
-      return { success: false, error: String(err) }
+      try {
+        if (ext === 'json') await writeFile(filePath, content, 'utf-8')
+        else await writeFile(filePath, Buffer.from(content, 'base64'))
+        return { success: true, filePath }
+      } catch (err) {
+        return { success: false, error: String(err) }
+      }
     }
-  })
+  )
 
   ipcMain.handle('dialog:saveCSV', async (_event, content: string, defaultName: string) => {
     if (typeof content !== 'string' || content.length > MAX_TEXT_PAYLOAD) {
@@ -312,7 +503,7 @@ app.whenReady().then(async () => {
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
       title: 'Save CSV',
       defaultPath: defaultName,
-      filters: [{ name: 'CSV File', extensions: ['csv'] }],
+      filters: [{ name: 'CSV File', extensions: ['csv'] }]
     })
     if (canceled || !filePath) return { success: false, error: 'Canceled' }
 
@@ -337,7 +528,7 @@ app.whenReady().then(async () => {
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
       title: 'Save PDF',
       defaultPath: defaultName,
-      filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+      filters: [{ name: 'PDF Document', extensions: ['pdf'] }]
     })
     if (canceled || !filePath) return { success: false, error: 'Canceled' }
 
@@ -345,13 +536,13 @@ app.whenReady().then(async () => {
       show: false,
       width: 900,
       height: 1200,
-      webPreferences: { sandbox: true },
+      webPreferences: { sandbox: true }
     })
     try {
       await pdfWin.loadURL(`data:text/html;base64,${htmlB64}`)
       const pdfData = await pdfWin.webContents.printToPDF({
         printBackground: true,
-        pageSize: 'A4',
+        pageSize: 'A4'
       })
       await writeFile(filePath, pdfData)
       return { success: true, filePath }
@@ -363,16 +554,15 @@ app.whenReady().then(async () => {
   })
 
   ipcMain.handle('image-wm:checkPython', async () => {
-    const modelsDir = findBundledModelsDir()
-    const exePath = findBundledExe()
-    if (exePath) {
-      const result = await runBwm({ mode: 'exe', exePath }, { mode: 'check', models_dir: modelsDir })
-      return { ...result, mode: 'exe', python: null }
-    }
-    const python = await findPythonExe()
-    if (!python) return { ok: false, mode: 'python', python: null, error: 'no-runner' }
-    const result = await runBwm({ mode: 'python', python }, { mode: 'check', models_dir: modelsDir })
-    return { ...result, mode: 'python', python }
+    return warmupBwmBackend(false)
+  })
+
+  ipcMain.handle('image-wm:backendStatus', async () => {
+    return backendStatusCache ?? warmupBwmBackend(false)
+  })
+
+  ipcMain.handle('image-wm:warmup', async () => {
+    return warmupBwmBackend(true)
   })
 
   ipcMain.handle('image-wm:openImage', async () => {
@@ -383,10 +573,24 @@ app.whenReady().then(async () => {
       properties: ['openFile'],
       filters: [
         { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'bmp', 'tiff', 'tif'] },
-        { name: 'All files', extensions: ['*'] },
-      ],
+        { name: 'All files', extensions: ['*'] }
+      ]
     })
     return canceled || filePaths.length === 0 ? null : filePaths[0]
+  })
+
+  ipcMain.handle('image-wm:openImages', async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return []
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: 'Open images',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'bmp', 'tiff', 'tif'] },
+        { name: 'All files', extensions: ['*'] }
+      ]
+    })
+    return canceled ? [] : filePaths.filter(isAllowedImagePath)
   })
 
   ipcMain.handle('image-wm:saveImage', async () => {
@@ -395,14 +599,36 @@ app.whenReady().then(async () => {
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
       title: 'Save watermarked image',
       defaultPath: 'watermarked.png',
-      filters: [{ name: 'PNG Image', extensions: ['png'] }],
+      filters: [{ name: 'PNG Image', extensions: ['png'] }]
     })
     return canceled || !filePath ? null : filePath
   })
 
+  ipcMain.handle('image-wm:chooseOutputDir', async () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (!win) return null
+    const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+      title: 'Choose output folder',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    return canceled || filePaths.length === 0 ? null : filePaths[0]
+  })
+
   ipcMain.handle(
     'image-wm:embed',
-    async (_e, opts: { inputPath: string; outputPath: string; wmText: string; password: number; quality: string; engine: string }) => {
+    async (
+      _e,
+      opts: {
+        inputPath: string
+        outputPath: string
+        wmText: string
+        password: number
+        quality: string
+        engine: string
+        payloadMode?: string
+      }
+    ) => {
+      const payloadMode = opts?.payloadMode ?? 'fingerprint64'
       if (
         !opts ||
         !isValidPathInput(opts.inputPath) ||
@@ -415,6 +641,7 @@ app.whenReady().then(async () => {
         opts.password > 2_147_483_647 ||
         !ALLOWED_QUALITY.has(opts.quality) ||
         !ALLOWED_ENGINE.has(opts.engine) ||
+        !ALLOWED_PAYLOAD_MODE.has(payloadMode) ||
         !isAllowedImagePath(opts.inputPath) ||
         !isAllowedImagePath(opts.outputPath)
       ) {
@@ -430,14 +657,25 @@ app.whenReady().then(async () => {
         password: opts.password,
         quality: opts.quality,
         engine: opts.engine,
-        models_dir: findBundledModelsDir(),
+        payload_mode: payloadMode,
+        models_dir: findBundledModelsDir()
       })
-    },
+    }
   )
 
   ipcMain.handle(
     'image-wm:extract',
-    async (_e, opts: { inputPath: string; password: number; quality: string; engine: string }) => {
+    async (
+      _e,
+      opts: {
+        inputPath: string
+        password: number
+        quality: string
+        engine: string
+        payloadMode?: string
+      }
+    ) => {
+      const payloadMode = opts?.payloadMode
       if (
         !opts ||
         !isValidPathInput(opts.inputPath) ||
@@ -446,6 +684,7 @@ app.whenReady().then(async () => {
         opts.password > 2_147_483_647 ||
         !ALLOWED_QUALITY.has(opts.quality) ||
         !ALLOWED_ENGINE.has(opts.engine) ||
+        (payloadMode != null && !ALLOWED_PAYLOAD_MODE.has(payloadMode)) ||
         !isAllowedImagePath(opts.inputPath)
       ) {
         return { ok: false, error: 'Invalid image extract parameters' }
@@ -456,14 +695,114 @@ app.whenReady().then(async () => {
         mode: 'extract',
         input: opts.inputPath,
         password: opts.password,
-        quality: opts.quality,
+        quality: opts.quality || 'balanced',
         engine: opts.engine,
-        models_dir: findBundledModelsDir(),
+        payload_mode: payloadMode,
+        models_dir: findBundledModelsDir()
       })
-    },
+    }
   )
 
+  ipcMain.handle(
+    'image-wm:embedBatch',
+    async (
+      e,
+      opts: {
+        inputPaths: string[]
+        outputDir: string
+        wmText: string
+        password: number
+        quality: string
+        engine: string
+        payloadMode?: string
+        selfCheckMode?: 'sampled' | 'all' | 'off'
+      }
+    ) => {
+      const payloadMode = opts?.payloadMode ?? 'fingerprint64'
+      if (
+        !opts ||
+        !Array.isArray(opts.inputPaths) ||
+        opts.inputPaths.length === 0 ||
+        opts.inputPaths.length > 500 ||
+        !isValidPathInput(opts.outputDir) ||
+        typeof opts.wmText !== 'string' ||
+        opts.wmText.trim().length === 0 ||
+        opts.wmText.length > 4096 ||
+        !Number.isInteger(opts.password) ||
+        opts.password < 0 ||
+        opts.password > 2_147_483_647 ||
+        !ALLOWED_QUALITY.has(opts.quality) ||
+        !ALLOWED_ENGINE.has(opts.engine) ||
+        !ALLOWED_PAYLOAD_MODE.has(payloadMode)
+      ) {
+        return {
+          ok: false,
+          error: 'Invalid image batch embed parameters',
+          failureCode: 'invalid_request'
+        }
+      }
+      const runner = await getRunner()
+      if (!runner)
+        return {
+          ok: false,
+          error: 'No runnable image watermark backend available',
+          failureCode: 'model_unavailable'
+        }
+      const batchId = `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const usedNames = new Set<string>()
+      const lastIndex = opts.inputPaths.length - 1
+      const mode = opts.selfCheckMode ?? 'sampled'
+      const items = opts.inputPaths.map((inputPath, index) => {
+        const selfCheck =
+          mode === 'all' ||
+          (mode === 'sampled' && (index === 0 || index === lastIndex || index % 10 === 0))
+        return {
+          input: inputPath,
+          output: uniqueBatchOutputPath(inputPath, opts.outputDir, usedNames),
+          self_check: selfCheck
+        }
+      })
+      if (
+        !items.every(
+          (item) =>
+            isValidPathInput(item.input) &&
+            isAllowedImagePath(item.input) &&
+            isAllowedImagePath(item.output)
+        )
+      ) {
+        return { ok: false, error: 'Invalid image path in batch', failureCode: 'invalid_request' }
+      }
+      return runBwmBatch(
+        runner,
+        {
+          mode: 'embed_batch',
+          batch_id: batchId,
+          items,
+          wm: opts.wmText,
+          password: opts.password,
+          quality: opts.quality,
+          engine: opts.engine,
+          payload_mode: payloadMode,
+          models_dir: findBundledModelsDir()
+        },
+        e.sender
+      )
+    }
+  )
+
+  ipcMain.handle('image-wm:cancelBatch', async (_e, batchId: string) => {
+    if (typeof batchId !== 'string') return false
+    const batch = batchProcesses.get(batchId)
+    if (!batch) return false
+    const killed = batch.cancel()
+    batchProcesses.delete(batchId)
+    return killed
+  })
+
   createWindow()
+  setTimeout(() => {
+    void warmupBwmBackend(true)
+  }, 800)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

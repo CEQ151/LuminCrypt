@@ -82,27 +82,118 @@ TEMPLATE_RING_BANDS = [
 # v2 compat constants
 _V2_RS_NSYM = 20
 _V2_REDUNDANCY = 3
-RWM_VERSION = '3.2.0'
+RWM_VERSION = '3.5.0'
 NEURAL_MAX_TEXT_BYTES = 16
+DEFAULT_PAYLOAD_MODE = 'fingerprint64'
+PAYLOAD_MODES = {'fingerprint64', 'text16'}
 NEURAL_PROFILES = {
-    'invisible': {
-        'residual_strength': 0.35,
+    'trace': {
+        'residual_strength': 0.12,
+        'codec': 'frequency_spread_v2',
+        'spread_delta': 3.0,
+        'spread_reps': 12,
+        'spread_mask_floor': 0.32,
+        'spread_mask_gain': 0.82,
+        'chroma_scale': 0.20,
+        'texture_floor': 0.20,
+        'texture_power': 1.45,
+        'max_abs_residual': 0.006,
+        'allow_self_check_failure': False,
+        'template_strength': 0.0,
+        'template_peaks': 0,
+        'sync_enabled': False,
+    },
+    'faint': {
+        'residual_strength': 0.24,
+        'codec': 'frequency_spread_v2',
+        'spread_delta': 3.4,
+        'spread_reps': 12,
+        'spread_mask_floor': 0.35,
+        'spread_mask_gain': 0.85,
+        'chroma_scale': 0.45,
+        'texture_floor': 0.45,
+        'texture_power': 1.20,
+        'max_abs_residual': 0.014,
+        'allow_self_check_failure': False,
+        'template_strength': 0.0,
+        'template_peaks': 0,
+        'sync_enabled': False,
+    },
+    'light': {
+        'residual_strength': 0.45,
+        'codec': 'frequency_spread_v2',
+        'spread_delta': 4.0,
+        'spread_reps': 12,
+        'spread_mask_floor': 0.38,
+        'spread_mask_gain': 0.88,
+        'chroma_scale': 0.80,
+        'texture_floor': 0.80,
+        'texture_power': 1.0,
+        'max_abs_residual': None,
+        'allow_self_check_failure': False,
         'template_strength': 0.0,
         'template_peaks': 0,
         'sync_enabled': False,
     },
     'balanced': {
-        'residual_strength': 0.55,
+        'residual_strength': 0.70,
+        'codec': 'frequency_spread_v2',
+        'spread_delta': 4.8,
+        'spread_reps': 14,
+        'spread_mask_floor': 0.40,
+        'spread_mask_gain': 0.90,
+        'chroma_scale': 0.80,
+        'texture_floor': 0.80,
+        'texture_power': 1.0,
+        'max_abs_residual': None,
+        'allow_self_check_failure': False,
+        'template_strength': 0.0,
+        'template_peaks': 0,
+        'sync_enabled': False,
+    },
+    'strong': {
+        'residual_strength': 0.80,
+        'chroma_scale': 0.90,
+        'texture_floor': 0.90,
+        'texture_power': 1.0,
+        'max_abs_residual': None,
+        'allow_self_check_failure': False,
         'template_strength': 0.0,
         'template_peaks': 0,
         'sync_enabled': False,
     },
     'robust': {
         'residual_strength': 1.0,
+        'chroma_scale': 1.0,
+        'texture_floor': 1.0,
+        'texture_power': 1.0,
+        'max_abs_residual': None,
+        'allow_self_check_failure': False,
         'template_strength': 0.0,
         'template_peaks': 0,
         'sync_enabled': False,
     },
+}
+SPREAD_DCT_PAIRS = [
+    ((2, 3), (3, 2)),
+    ((2, 4), (4, 2)),
+    ((3, 3), (2, 5)),
+    ((4, 3), (3, 4)),
+    ((1, 4), (4, 1)),
+    ((2, 2), (1, 5)),
+]
+SPREAD_PROFILE_ORDER = ['balanced', 'light', 'faint', 'trace']
+NEURAL_PROFILE_ALIASES = {
+    'invisible': 'light',
+}
+QUALITY_ALIASES = {
+    'trace': 'invisible',
+    'faint': 'invisible',
+    'light': 'invisible',
+    'invisible': 'invisible',
+    'balanced': 'balanced',
+    'strong': 'robust',
+    'robust': 'robust',
 }
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -363,7 +454,12 @@ def _count_available_blocks(h, w, margin_ratio):
 
 # ─── Public API ───────────────────────────────────────────────────────────────
 
+def _resolve_legacy_quality(quality):
+    return QUALITY_ALIASES.get(quality, 'balanced')
+
+
 def embed_watermark_legacy(img, text, password=1, quality='balanced', self_check=True):
+    quality = _resolve_legacy_quality(quality)
     if quality not in QUALITY:
         raise ValueError(f'quality must be one of {list(QUALITY.keys())}')
     cfg = QUALITY[quality]
@@ -441,6 +537,7 @@ def embed_watermark_legacy(img, text, password=1, quality='balanced', self_check
 
 
 def extract_watermark_legacy(img, password=1, quality='balanced'):
+    quality = _resolve_legacy_quality(quality)
     if quality not in QUALITY:
         quality = 'balanced'
 
@@ -523,9 +620,80 @@ def extract_watermark_legacy(img, password=1, quality='balanced'):
 
 
 def _resolve_neural_profile(quality):
+    quality = NEURAL_PROFILE_ALIASES.get(quality, quality)
     if quality in NEURAL_PROFILES:
         return quality
     return 'balanced'
+
+
+FAILURE_MESSAGES = {
+    'invalid_request': (
+        'The watermark request is incomplete or invalid.',
+        ['Check the selected image, password, engine, and output path.'],
+    ),
+    'input_unreadable': (
+        'The image could not be read.',
+        ['Confirm the file still exists and is a supported image format.'],
+    ),
+    'model_unavailable': (
+        'The neural watermark model is not available.',
+        ['Check whether the bundled model files and ONNX runtime are installed.'],
+    ),
+    'payload_too_long': (
+        f'Neural watermark text must be {NEURAL_MAX_TEXT_BYTES} UTF-8 bytes or shorter.',
+        ['Use Auto or Legacy for longer text, or shorten the neural payload.'],
+    ),
+    'no_signal': (
+        'No reliable watermark signal was found.',
+        ['Check whether this is the watermarked image.', 'Try Auto mode or Legacy compatibility mode.'],
+    ),
+    'wrong_password_or_corrupted_payload': (
+        'A watermark-like signal was found, but the payload did not pass validation.',
+        ['Confirm the password first.', 'If the password is correct, the image may have been compressed, cropped, or overlaid too heavily.'],
+    ),
+    'engine_mismatch': (
+        'The selected engine could not decode this image.',
+        ['Try Auto mode, or switch between Neural and Legacy.'],
+    ),
+    'unsupported_protocol': (
+        'The watermark protocol is not supported by this version.',
+        ['Update the app and helper, then try again.'],
+    ),
+}
+
+
+def _failure_payload(code, stage, *, error=None, engine='auto', fallback=False, diagnostics=None, confidence=None):
+    message, hints = FAILURE_MESSAGES.get(code, FAILURE_MESSAGES['invalid_request'])
+    payload = {
+        'ok': False,
+        'error': error or message,
+        'failureCode': code,
+        'failureStage': stage,
+        'userMessage': message,
+        'recoveryHints': hints,
+        'engine_used': engine,
+        'fallback_used': fallback,
+        'diagnostics': diagnostics or {},
+    }
+    if confidence is not None:
+        payload['confidence'] = confidence
+    return payload
+
+
+def _classify_extract_error(exc):
+    code = getattr(exc, 'failure_code', None)
+    if code:
+        return code
+    lower = str(exc).lower()
+    if 'onnxruntime' in lower or 'neural models are not ready' in lower or 'not installed' in lower:
+        return 'model_unavailable'
+    if 'protocol' in lower:
+        return 'unsupported_protocol'
+    if 'chien search' in lower or 'crc' in lower or 'checksum' in lower or 'reedsolo' in lower:
+        return 'wrong_password_or_corrupted_payload'
+    if 'no valid watermark' in lower or 'no reliable neural watermark signal' in lower:
+        return 'no_signal'
+    return 'engine_mismatch'
 
 
 def _center_square(image):
@@ -534,6 +702,136 @@ def _center_square(image):
     y0 = max(0, (h - edge) // 2)
     x0 = max(0, (w - edge) // 2)
     return image[y0:y0 + edge, x0:x0 + edge]
+
+
+def _spread_seed(password, label='spread-v1'):
+    seed_material = label.encode('utf-8') + struct.pack('>I', int(password) & 0xffffffff)
+    digest = hashlib.sha256(seed_material).digest()
+    return int.from_bytes(digest[:8], 'little')
+
+
+def _spread_block_mask(y_channel, hb, wb):
+    gx = cv2.Sobel(y_channel, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(y_channel, cv2.CV_32F, 0, 1, ksize=3)
+    edge = np.sqrt(gx * gx + gy * gy)
+    mask = np.zeros(hb * wb, dtype=np.float32)
+    k = 0
+    for by in range(hb):
+        for bx in range(wb):
+            y0, x0 = by * BLOCK, bx * BLOCK
+            block = y_channel[y0:y0 + BLOCK, x0:x0 + BLOCK]
+            edge_block = edge[y0:y0 + BLOCK, x0:x0 + BLOCK]
+            mask[k] = np.log1p(float(block.var())) * 0.65 + np.log1p(float(edge_block.mean())) * 0.35
+            k += 1
+    lo, hi = float(np.percentile(mask, 25)), float(np.percentile(mask, 95))
+    return np.clip((mask - lo) / max(hi - lo, 1e-6), 0.0, 1.0)
+
+
+def _spread_mapping(hb, wb, reps, password):
+    try:
+        from blind_watermark.mlwm.codec import PAYLOAD_BITS
+    except ImportError:
+        from mlwm.codec import PAYLOAD_BITS
+
+    total_blocks = hb * wb
+    reps = max(1, min(int(reps), total_blocks // PAYLOAD_BITS))
+    if reps < 3:
+        raise ValueError('image is too small for frequency-spread watermark')
+    rng = np.random.default_rng(_spread_seed(password))
+    block_indices = rng.permutation(total_blocks)[:PAYLOAD_BITS * reps].reshape(PAYLOAD_BITS, reps)
+    pair_indices = rng.integers(0, len(SPREAD_DCT_PAIRS), PAYLOAD_BITS * reps).reshape(PAYLOAD_BITS, reps)
+    return block_indices, pair_indices, reps
+
+
+def _dct_spread_embed_bgr(base_bgr, payload_bits, password, profile):
+    ycc = cv2.cvtColor(base_bgr[:, :, :3], cv2.COLOR_BGR2YCrCb)
+    y = ycc[:, :, 0].astype(np.float32)
+    h, w = y.shape
+    hb, wb = h // BLOCK, w // BLOCK
+    hh, ww = hb * BLOCK, wb * BLOCK
+    work = y[:hh, :ww].copy()
+    delta = float(profile.get('spread_delta', 3.0))
+    mask_floor = float(profile.get('spread_mask_floor', 0.35))
+    mask_gain = float(profile.get('spread_mask_gain', 0.85))
+    block_mask = _spread_block_mask(work, hb, wb)
+    block_indices, pair_indices, reps = _spread_mapping(hb, wb, profile.get('spread_reps', 12), password)
+
+    for bit_index, bit in enumerate(np.asarray(payload_bits, dtype=np.float32).reshape(-1)):
+        symbol = 1.0 if bit >= 0.5 else -1.0
+        for sample_index in range(reps):
+            block_index = int(block_indices[bit_index, sample_index])
+            by, bx = divmod(block_index, wb)
+            y0, x0 = by * BLOCK, bx * BLOCK
+            coeff_a, coeff_b = SPREAD_DCT_PAIRS[int(pair_indices[bit_index, sample_index])]
+            dct_block = cv2.dct(work[y0:y0 + BLOCK, x0:x0 + BLOCK] - 128.0)
+            diff = float(dct_block[coeff_a] - dct_block[coeff_b])
+            local_delta = delta * (mask_floor + mask_gain * float(block_mask[block_index]))
+            if symbol * diff < local_delta:
+                change = (symbol * local_delta - diff) / 2.0
+                dct_block[coeff_a] += change
+                dct_block[coeff_b] -= change
+                work[y0:y0 + BLOCK, x0:x0 + BLOCK] = cv2.idct(dct_block) + 128.0
+
+    out = ycc.copy()
+    out[:hh, :ww, 0] = np.clip(np.round(work), 0, 255).astype(np.uint8)
+    return cv2.cvtColor(out, cv2.COLOR_YCrCb2BGR), {
+        'spreadDelta': delta,
+        'spreadReps': reps,
+        'spreadMaskFloor': mask_floor,
+        'spreadMaskGain': mask_gain,
+        'spreadBlocks': int(hb * wb),
+    }
+
+
+def _dct_spread_decode_bgr(base_bgr, password, profile):
+    try:
+        from blind_watermark.mlwm.codec import PAYLOAD_BITS, decode_payload_logits
+        from blind_watermark.mlwm.infer import NeuralDecodeError
+    except ImportError:
+        from mlwm.codec import PAYLOAD_BITS, decode_payload_logits
+        from mlwm.infer import NeuralDecodeError
+
+    ycc = cv2.cvtColor(base_bgr[:, :, :3], cv2.COLOR_BGR2YCrCb)
+    y = ycc[:, :, 0].astype(np.float32)
+    h, w = y.shape
+    hb, wb = h // BLOCK, w // BLOCK
+    hh, ww = hb * BLOCK, wb * BLOCK
+    work = y[:hh, :ww]
+    delta = float(profile.get('spread_delta', 3.0))
+    block_indices, pair_indices, reps = _spread_mapping(hb, wb, profile.get('spread_reps', 12), password)
+    logits = np.zeros(PAYLOAD_BITS, dtype=np.float32)
+    confidence_samples = []
+
+    for bit_index in range(PAYLOAD_BITS):
+        scores = []
+        for sample_index in range(reps):
+            block_index = int(block_indices[bit_index, sample_index])
+            by, bx = divmod(block_index, wb)
+            y0, x0 = by * BLOCK, bx * BLOCK
+            coeff_a, coeff_b = SPREAD_DCT_PAIRS[int(pair_indices[bit_index, sample_index])]
+            dct_block = cv2.dct(work[y0:y0 + BLOCK, x0:x0 + BLOCK] - 128.0)
+            diff = float(dct_block[coeff_a] - dct_block[coeff_b])
+            scores.append(np.tanh(diff / max(delta * 1.1, 1e-6)))
+        score = float(np.mean(scores))
+        logits[bit_index] = score * 5.0
+        confidence_samples.append(abs(score))
+
+    avg_confidence = float(np.mean(confidence_samples))
+    try:
+        decoded = decode_payload_logits(logits, password=password)
+    except Exception as exc:
+        failure_code = 'wrong_password_or_corrupted_payload' if avg_confidence >= 0.18 else 'no_signal'
+        raise NeuralDecodeError(
+            failure_code,
+            'frequency-spread payload checksum failed' if failure_code != 'no_signal' else 'no reliable frequency-spread watermark signal',
+            confidence=avg_confidence,
+            attempts=[{'profile': profile.get('name'), 'confidence': avg_confidence, 'reps': reps}],
+        ) from exc
+    decoded['confidence'] = avg_confidence
+    decoded['strategy'] = 'dct-spread-spectrum'
+    decoded['spreadReps'] = reps
+    decoded['spreadDelta'] = delta
+    return decoded
 
 
 def _rectify_neural_image(img, password):
@@ -592,28 +890,81 @@ def _legacy_extract_response(text, quality, requested_engine, fallback_reason=No
     }
 
 
-def _neural_embed_impl(img, text, password=1, quality='balanced', models_dir=None, self_check=True):
-    if len(text.encode('utf-8')) > NEURAL_MAX_TEXT_BYTES:
-        raise ValueError(f'Neural watermark supports up to {NEURAL_MAX_TEXT_BYTES} UTF-8 bytes')
-    try:
-        from blind_watermark.mlwm.codec import encode_text_payload
-        from blind_watermark.mlwm.infer import NeuralRuntimeUnavailable, neural_encode_residual, apply_neural_residual
-    except ImportError:
-        from mlwm.codec import encode_text_payload
-        from mlwm.infer import NeuralRuntimeUnavailable, neural_encode_residual, apply_neural_residual
+def _resolve_payload_mode(payload_mode):
+    return payload_mode if payload_mode in PAYLOAD_MODES else DEFAULT_PAYLOAD_MODE
+
+
+def _neural_embed_impl(
+    img,
+    text,
+    password=1,
+    quality='balanced',
+    models_dir=None,
+    self_check=True,
+    payload_mode=DEFAULT_PAYLOAD_MODE,
+):
+    payload_mode = _resolve_payload_mode(payload_mode)
+    if payload_mode == 'text16' and len(text.encode('utf-8')) > NEURAL_MAX_TEXT_BYTES:
+        raise ValueError(f'Neural text16 watermark supports up to {NEURAL_MAX_TEXT_BYTES} UTF-8 bytes')
 
     profile_name = _resolve_neural_profile(quality)
-    profile = NEURAL_PROFILES[profile_name]
+    profile = dict(NEURAL_PROFILES[profile_name], name=profile_name)
     alpha = img[:, :, 3].copy() if img.ndim == 3 and img.shape[2] == 4 else None
     base = img[:, :, :3] if alpha is not None else img.copy()
-    payload = encode_text_payload(text, password=password)
-    rgb = cv2.cvtColor(base, cv2.COLOR_BGR2RGB)
-    try:
-        encoded = neural_encode_residual(rgb, payload.bits, models_dir=models_dir, use_cuda=False)
-    except NeuralRuntimeUnavailable:
-        raise
-    rgb_watermarked = apply_neural_residual(rgb, encoded['residual'], strength=profile['residual_strength'])
-    out = cv2.cvtColor(rgb_watermarked, cv2.COLOR_RGB2BGR).astype(np.float64)
+    payload = None
+    spread_diagnostics = {}
+    if profile.get('codec') == 'frequency_spread_v2':
+        try:
+            from blind_watermark.mlwm import spread_v2
+        except ImportError:
+            from mlwm import spread_v2
+
+        out_bgr, spread_diagnostics = spread_v2.embed_bgr(
+            base,
+            text,
+            password,
+            profile_name,
+            payload_mode=payload_mode,
+        )
+        encoded = {'modelVersion': spread_diagnostics.get('modelVersion', 'frequency-spread-v2')}
+        out = out_bgr.astype(np.float64)
+        payload = type('PayloadInfo', (), {
+            'protocol': spread_diagnostics.get('protocol'),
+            'password_protected': True,
+            'text_bytes': text.encode('utf-8') if payload_mode == 'text16' else bytes.fromhex(spread_diagnostics.get('fingerprint') or ''),
+        })()
+    elif profile.get('codec') == 'frequency_spread':
+        try:
+            from blind_watermark.mlwm.codec import encode_text_payload
+        except ImportError:
+            from mlwm.codec import encode_text_payload
+        payload = encode_text_payload(text, password=password)
+        out_bgr, spread_diagnostics = _dct_spread_embed_bgr(base, payload.bits, password, profile)
+        encoded = {'modelVersion': 'frequency-spread-v1'}
+        out = out_bgr.astype(np.float64)
+    else:
+        try:
+            from blind_watermark.mlwm.codec import encode_text_payload
+        except ImportError:
+            from mlwm.codec import encode_text_payload
+        payload = encode_text_payload(text, password=password)
+        try:
+            from blind_watermark.mlwm.infer import NeuralRuntimeUnavailable, neural_encode_residual, apply_neural_residual
+        except ImportError:
+            from mlwm.infer import NeuralRuntimeUnavailable, neural_encode_residual, apply_neural_residual
+
+        rgb = cv2.cvtColor(base, cv2.COLOR_BGR2RGB)
+        try:
+            encoded = neural_encode_residual(rgb, payload.bits, models_dir=models_dir, use_cuda=False)
+        except NeuralRuntimeUnavailable:
+            raise
+        rgb_watermarked = apply_neural_residual(
+            rgb,
+            encoded['residual'],
+            strength=profile['residual_strength'],
+            profile=profile,
+        )
+        out = cv2.cvtColor(rgb_watermarked, cv2.COLOR_RGB2BGR).astype(np.float64)
 
     if profile.get('sync_enabled', False) and profile.get('template_strength', 0.0) > 0.0:
         gray = cv2.cvtColor(out.astype(np.uint8), cv2.COLOR_BGR2GRAY).astype(np.float64)
@@ -628,20 +979,43 @@ def _neural_embed_impl(img, text, password=1, quality='balanced', models_dir=Non
 
     diagnostics = {
         'profile': profile_name,
+        'codec': profile.get('codec', 'neural_residual'),
         'protocol': payload.protocol,
         'passwordProtected': payload.password_protected,
-        'visualStrength': profile['residual_strength'],
+        'visualStrength': profile.get('spread_delta', profile['residual_strength']),
+        'chromaScale': profile.get('chroma_scale'),
+        'textureFloor': profile.get('texture_floor'),
+        'selfCheckRequired': not bool(profile.get('allow_self_check_failure', False)),
+        'selfCheckPassed': None,
         'payloadBytes': len(payload.text_bytes),
         'modelVersion': encoded.get('modelVersion'),
         'modelsDir': models_dir,
+        'warnings': [],
     }
+    diagnostics.update(spread_diagnostics)
 
     if self_check:
-        extracted = _neural_extract_impl(out, password=password, quality=quality, models_dir=models_dir)
-        if not extracted.get('ok') or extracted.get('wm') != text:
-            raise ValueError('Neural self-check mismatch')
+        try:
+            extracted = _neural_extract_impl(
+                out,
+                password=password,
+                quality=quality,
+                models_dir=models_dir,
+                payload_mode=payload_mode,
+            )
+            expected_text = f"fp:{spread_diagnostics.get('fingerprint')}" if payload_mode == 'fingerprint64' else text
+            if not extracted.get('ok') or extracted.get('wm') != expected_text:
+                raise ValueError('Neural self-check mismatch')
+            diagnostics['selfCheckPassed'] = True
+        except Exception as exc:
+            diagnostics['selfCheckPassed'] = False
+            diagnostics['selfCheckError'] = str(exc)
+            if profile.get('allow_self_check_failure', False):
+                diagnostics['warnings'].append('self-check-failed-risk-accepted')
+            else:
+                raise
 
-    return {
+    response = {
         'ok': True,
         'image': out,
         'engine_used': 'neural',
@@ -650,15 +1024,45 @@ def _neural_embed_impl(img, text, password=1, quality='balanced', models_dir=Non
         'confidence': 1.0,
         'diagnostics': diagnostics,
     }
+    if diagnostics['warnings']:
+        response['warningCode'] = diagnostics['warnings'][0]
+        response['warnings'] = diagnostics['warnings']
+    return response
 
 
-def _neural_extract_impl(img, password=1, quality='balanced', models_dir=None):
+def _neural_extract_impl(
+    img,
+    password=1,
+    quality='balanced',
+    models_dir=None,
+    payload_mode=None,
+):
+    profile_name = _resolve_neural_profile(quality)
+    spread_order = [profile_name] if profile_name in SPREAD_PROFILE_ORDER else []
+    spread_order.extend([name for name in SPREAD_PROFILE_ORDER if name not in spread_order])
+    spread_errors = []
+    requested_payload_modes = []
+    if payload_mode in PAYLOAD_MODES:
+        requested_payload_modes.append(payload_mode)
+    requested_payload_modes.extend([mode for mode in ['fingerprint64', 'text16'] if mode not in requested_payload_modes])
+    for spread_name in spread_order:
+        for mode in requested_payload_modes:
+            try:
+                return _frequency_spread_v2_extract_response(img, password, spread_name, mode, models_dir)
+            except Exception as exc:
+                spread_errors.append(exc)
+
+    for spread_name in spread_order:
+        try:
+            return _frequency_spread_extract_response(img, password, spread_name, models_dir)
+        except Exception as exc:
+            spread_errors.append(exc)
+
     try:
         from blind_watermark.mlwm.infer import NeuralRuntimeUnavailable, neural_decode_views
     except ImportError:
         from mlwm.infer import NeuralRuntimeUnavailable, neural_decode_views
 
-    profile_name = _resolve_neural_profile(quality)
     profile = NEURAL_PROFILES[profile_name]
     if profile.get('sync_enabled', False):
         corrected, geo = _rectify_neural_image(img[:, :, :3] if img.ndim == 3 else img, password)
@@ -669,12 +1073,28 @@ def _neural_extract_impl(img, password=1, quality='balanced', models_dir=None):
     try:
         decoded = neural_decode_views(views, models_dir=models_dir, use_cuda=False, password=password)
     except NeuralRuntimeUnavailable:
+        if spread_errors:
+            raise spread_errors[0]
+        raise
+    except Exception:
+        if spread_errors:
+            no_signal_errors = [
+                err for err in spread_errors
+                if getattr(err, 'failure_code', None) == 'no_signal'
+            ]
+            raise (no_signal_errors[0] if no_signal_errors else spread_errors[0])
         raise
 
     confidence = float(decoded.get('confidence', decoded.get('bitConfidence', 0.0)))
+    text = decoded.get('text', '')
+    if not text:
+        raise ValueError('decoded empty payload')
+    payload_bytes = decoded.get('payloadBytes')
+    if isinstance(payload_bytes, (bytes, bytearray)):
+        payload_bytes = len(payload_bytes)
     return {
         'ok': True,
-        'wm': decoded['text'],
+        'wm': text,
         'engine_used': 'neural',
         'fallback_used': False,
         'confidence': confidence,
@@ -694,28 +1114,134 @@ def _neural_extract_impl(img, password=1, quality='balanced', models_dir=None):
     }
 
 
-def embed_watermark(img, text, password=1, quality='balanced', engine='auto', models_dir=None, self_check=True):
+def _frequency_spread_v2_extract_response(img, password, profile_name, payload_mode, models_dir=None):
+    try:
+        from blind_watermark.mlwm import spread_v2
+        from blind_watermark.mlwm.infer import NeuralDecodeError
+    except ImportError:
+        from mlwm import spread_v2
+        from mlwm.infer import NeuralDecodeError
+
+    try:
+        decoded = spread_v2.decode_bgr(
+            img[:, :, :3] if img.ndim == 3 else img,
+            password,
+            profile_name,
+            payload_mode=payload_mode,
+        )
+    except Exception as exc:
+        failure_code = getattr(exc, 'failure_code', 'wrong_password_or_corrupted_payload')
+        raise NeuralDecodeError(
+            failure_code,
+            str(exc),
+            confidence=getattr(exc, 'confidence', None),
+            attempts=getattr(exc, 'attempts', None) or [{'profile': profile_name, 'payloadMode': payload_mode, 'error': str(exc)}],
+        ) from exc
+    confidence = float(decoded.get('confidence', decoded.get('bitConfidence', 0.0)))
+    text = decoded.get('text', '')
+    if not text:
+        raise ValueError('decoded empty payload')
+    payload_bytes = decoded.get('payloadBytes')
+    if isinstance(payload_bytes, (bytes, bytearray)):
+        payload_bytes = len(payload_bytes)
+    return {
+        'ok': True,
+        'wm': text,
+        'fingerprint': decoded.get('fingerprint'),
+        'payloadMode': decoded.get('payloadMode', payload_mode),
+        'engine_used': 'neural',
+        'fallback_used': False,
+        'confidence': confidence,
+        'diagnostics': {
+            'profile': profile_name,
+            'codec': 'frequency_spread_v2',
+            'protocol': decoded.get('protocol', 'spread-v2'),
+            'payloadMode': decoded.get('payloadMode', payload_mode),
+            'fingerprint': decoded.get('fingerprint'),
+            'passwordProtected': True,
+            'payloadBytes': payload_bytes,
+            'bitConfidence': float(decoded.get('bitConfidence', 0.0)),
+            'berEstimate': decoded.get('berEstimate'),
+            'spreadConfidence': confidence,
+            'decodeStrategy': decoded.get('strategy'),
+            'spreadReps': decoded.get('spreadReps'),
+            'spreadDelta': decoded.get('spreadDelta'),
+            'geometricCorrection': {'angle': 0.0, 'scale': 1.0, 'confidence': 0.0, 'peaks': 0, 'syncEnabled': False},
+            'modelVersion': decoded.get('modelVersion', 'frequency-spread-v2'),
+            'modelsDir': models_dir,
+        },
+    }
+
+
+def _frequency_spread_extract_response(img, password, profile_name, models_dir=None):
+    profile = dict(NEURAL_PROFILES[profile_name], name=profile_name)
+    decoded = _dct_spread_decode_bgr(img[:, :, :3] if img.ndim == 3 else img, password, profile)
+    confidence = float(decoded.get('confidence', decoded.get('bitConfidence', 0.0)))
+    text = decoded.get('text', '')
+    if not text:
+        raise ValueError('decoded empty payload')
+    return {
+        'ok': True,
+        'wm': text,
+        'engine_used': 'neural',
+        'fallback_used': False,
+        'confidence': confidence,
+        'diagnostics': {
+            'profile': profile_name,
+            'codec': 'frequency_spread',
+            'protocol': decoded.get('protocol', 'keyed-v2'),
+            'passwordProtected': bool(decoded.get('passwordProtected', True)),
+            'visualStrength': profile.get('spread_delta', profile['residual_strength']),
+            'bitConfidence': float(decoded.get('bitConfidence', 0.0)),
+            'spreadConfidence': confidence,
+            'decodeStrategy': decoded.get('strategy'),
+            'spreadReps': decoded.get('spreadReps'),
+            'spreadDelta': decoded.get('spreadDelta'),
+            'geometricCorrection': {'angle': 0.0, 'scale': 1.0, 'confidence': 0.0, 'peaks': 0, 'syncEnabled': False},
+            'modelVersion': 'frequency-spread-v1',
+            'modelsDir': models_dir,
+        },
+    }
+
+
+def embed_watermark(
+    img,
+    text,
+    password=1,
+    quality='balanced',
+    engine='auto',
+    models_dir=None,
+    self_check=True,
+    payload_mode=DEFAULT_PAYLOAD_MODE,
+):
     requested_engine = engine if engine in ('auto', 'legacy', 'neural') else 'auto'
+    payload_mode = _resolve_payload_mode(payload_mode)
     text_bytes = text.encode('utf-8')
     if requested_engine == 'legacy':
-        legacy = embed_watermark_legacy(img, text, password=password, quality=quality, self_check=self_check)
-        return _legacy_embed_response(legacy, quality, requested_engine)
+        legacy_quality = _resolve_legacy_quality(quality)
+        legacy = embed_watermark_legacy(img, text, password=password, quality=legacy_quality, self_check=self_check)
+        return _legacy_embed_response(legacy, legacy_quality, requested_engine)
 
-    neural_allowed = len(text_bytes) <= NEURAL_MAX_TEXT_BYTES
+    profile_name = _resolve_neural_profile(quality)
+    profile_codec = NEURAL_PROFILES[profile_name].get('codec')
+    neural_allowed = (
+        profile_codec == 'frequency_spread_v2' and payload_mode == 'fingerprint64'
+    ) or len(text_bytes) <= NEURAL_MAX_TEXT_BYTES
     large_enough = min(img.shape[:2]) >= 512 if hasattr(img, 'shape') else False
 
     if requested_engine == 'neural' and not neural_allowed:
-        return {
-            'ok': False,
-            'error': f'Neural watermark supports up to {NEURAL_MAX_TEXT_BYTES} UTF-8 bytes',
-            'engine_used': 'neural',
-            'fallback_used': False,
-        }
+        return _failure_payload(
+            'payload_too_long',
+            'embed',
+            error=f'Neural text16 watermark supports up to {NEURAL_MAX_TEXT_BYTES} UTF-8 bytes',
+            engine='neural',
+        )
 
     if requested_engine == 'auto' and (not neural_allowed or not large_enough):
         reason = 'payload-too-long' if not neural_allowed else 'image-too-small-for-neural-auto'
-        legacy = embed_watermark_legacy(img, text, password=password, quality=quality, self_check=self_check)
-        return _legacy_embed_response(legacy, quality, requested_engine, reason)
+        legacy_quality = _resolve_legacy_quality(quality)
+        legacy = embed_watermark_legacy(img, text, password=password, quality=legacy_quality, self_check=self_check)
+        return _legacy_embed_response(legacy, legacy_quality, requested_engine, reason)
 
     try:
         return _neural_embed_impl(
@@ -725,49 +1251,73 @@ def embed_watermark(img, text, password=1, quality='balanced', engine='auto', mo
             quality=quality,
             models_dir=models_dir,
             self_check=self_check,
+            payload_mode=payload_mode,
         )
     except Exception as exc:
         if requested_engine == 'neural':
-            return {
-                'ok': False,
-                'error': str(exc),
-                'engine_used': 'neural',
-                'fallback_used': False,
-            }
-        legacy = embed_watermark_legacy(img, text, password=password, quality=quality, self_check=self_check)
-        return _legacy_embed_response(legacy, quality, requested_engine, f'neural-failed:{exc}')
+            code = 'model_unavailable' if 'neural models are not ready' in str(exc).lower() else 'engine_mismatch'
+            return _failure_payload(code, 'embed', error=str(exc), engine='neural')
+        legacy_quality = _resolve_legacy_quality(quality)
+        legacy = embed_watermark_legacy(img, text, password=password, quality=legacy_quality, self_check=self_check)
+        return _legacy_embed_response(legacy, legacy_quality, requested_engine, f'neural-failed:{exc}')
 
 
-def extract_watermark(img, password=1, quality='balanced', engine='auto', models_dir=None):
+def extract_watermark(
+    img,
+    password=1,
+    quality='balanced',
+    engine='auto',
+    models_dir=None,
+    payload_mode=None,
+):
     requested_engine = engine if engine in ('auto', 'legacy', 'neural') else 'auto'
     if requested_engine == 'legacy':
-        text = extract_watermark_legacy(img, password=password, quality=quality)
-        return _legacy_extract_response(text, quality, requested_engine)
+        legacy_quality = _resolve_legacy_quality(quality)
+        text = extract_watermark_legacy(img, password=password, quality=legacy_quality)
+        return _legacy_extract_response(text, legacy_quality, requested_engine)
 
     try:
-        return _neural_extract_impl(img, password=password, quality=quality, models_dir=models_dir)
+        return _neural_extract_impl(
+            img,
+            password=password,
+            quality=quality,
+            models_dir=models_dir,
+            payload_mode=payload_mode,
+        )
     except Exception as exc:
         if requested_engine == 'neural':
-            return {
-                'ok': False,
-                'error': str(exc),
-                'engine_used': 'neural',
-                'fallback_used': False,
-            }
-        try:
-            text = extract_watermark_legacy(img, password=password, quality=quality)
-            return _legacy_extract_response(text, quality, requested_engine, f'neural-failed:{exc}')
-        except Exception as legacy_exc:
-            return {
-                'ok': False,
-                'error': str(legacy_exc),
-                'engine_used': 'legacy',
-                'fallback_used': True,
-                'diagnostics': {
-                    'fallbackReason': f'neural-failed:{exc}',
-                    'legacyError': str(legacy_exc),
+            code = _classify_extract_error(exc)
+            return _failure_payload(
+                code,
+                'extract',
+                error=str(exc),
+                engine='neural',
+                confidence=getattr(exc, 'confidence', None),
+                diagnostics={
+                    'neuralError': str(exc),
+                    'attempts': getattr(exc, 'attempts', None),
                 },
+            )
+        try:
+            legacy_quality = _resolve_legacy_quality(quality)
+            text = extract_watermark_legacy(img, password=password, quality=legacy_quality)
+            return _legacy_extract_response(text, legacy_quality, requested_engine, f'neural-failed:{exc}')
+        except Exception as legacy_exc:
+            code = _classify_extract_error(exc)
+            diagnostics = {
+                    'fallbackReason': f'neural-failed:{exc}',
+                    'neuralError': str(exc),
+                    'legacyError': str(legacy_exc),
             }
+            return _failure_payload(
+                code,
+                'extract',
+                error=str(exc),
+                engine=requested_engine,
+                fallback=True,
+                confidence=getattr(exc, 'confidence', None),
+                diagnostics=diagnostics,
+            )
 
 
 def _try_extract_single_with_seed(gray, sd, quality_name, rs_nsym, redundancy,
