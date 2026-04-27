@@ -1,0 +1,45 @@
+extends: configs/mlwm/easy_5090.yaml
+stages:
+  warmup:
+    enabled: true
+    epochs: 3
+    freeze_encoder: true
+    fixed_residual_scale: 0.04
+    attack_strength: clean
+  main:
+    enabled: true
+    epochs: 10
+    freeze_encoder: false
+    freeze_decoder: true
+    encoder_teacher_weight: 20000.0
+    encoder_teacher_scale: 0.04
+    attack_strength: clean
+    loss:
+      payload_weight: 1.0
+      image_weight: 0.0
+      tv_weight: 0.0
+      residual_weight: 0.0
+  hard_negative:
+    enabled: true
+    epochs: 12
+    freeze_encoder: false
+    freeze_decoder: false
+    attack_strength: medium
+    encoder_teacher_weight: 800.0
+    encoder_teacher_scale: 0.035
+    loss:
+      payload_weight: 8.0
+      image_weight: 0.4
+      tv_weight: 0.01
+      residual_weight: 0.01
+  finalize:
+    enabled: true
+    epochs: 4
+    freeze_encoder: false
+    freeze_decoder: false
+    attack_strength: medium
+    loss:
+      payload_weight: 8.0
+      image_weight: 0.8
+      tv_weight: 0.02
+      residual_weight: 0.03

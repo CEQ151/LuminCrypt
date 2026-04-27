@@ -1,0 +1,33 @@
+extends: configs/mlwm/easy_5090.yaml
+optimizer:
+  lr: 0.00005
+  weight_decay: 0.00001
+stages:
+  warmup:
+    enabled: false
+  main:
+    enabled: false
+  hard_negative:
+    enabled: true
+    epochs: 30
+    freeze_encoder: false
+    freeze_decoder: false
+    attack_strength: medium
+    encoder_teacher_weight: 300.0
+    encoder_teacher_scale: 0.032
+    loss:
+      payload_weight: 10.0
+      image_weight: 0.6
+      tv_weight: 0.015
+      residual_weight: 0.02
+  finalize:
+    enabled: true
+    epochs: 16
+    freeze_encoder: false
+    freeze_decoder: false
+    attack_strength: medium
+    loss:
+      payload_weight: 12.0
+      image_weight: 0.8
+      tv_weight: 0.02
+      residual_weight: 0.03

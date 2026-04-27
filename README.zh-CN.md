@@ -26,8 +26,20 @@ LuminCrypt 是一款桌面安全工具箱，面向 **Unicode 隐藏字符检测*
 - **Unicode 隐藏字符检测**：识别零宽字符、BiDi 控制符、同形字符、Unicode Tags、变体选择器和特殊空格。
 - **加密文本水印**：使用 AES-256-GCM 保护载荷，并通过不可见 Unicode 字符写入普通文本，支持鲁棒冗余。
 - **图片盲水印**：使用 Python 图片水印引擎，基于 Block-DCT、QIM 风格嵌入、Reed-Solomon 恢复和多尺度提取。
+- **学习型鲁棒图片水印**：提供实验性的 MLWM v1 alpha 引擎，支持短载荷图片水印、ONNX 推理、攻击模拟、评测 manifest，并可自动回退到 legacy 图片水印引擎。
 - **批量处理和报告导出**：支持批量扫描，并可导出 JSON、CSV 或 PDF 检测结果。
 - **本地桌面流程**：使用 Electron、React、TypeScript 构建，图片水印能力由 Python helper 提供。
+
+## 项目状态
+
+| 模块 | 状态 |
+|---|---|
+| Unicode 隐藏字符检测 | 可用 |
+| 加密文本水印 | 可用 |
+| Legacy 图片盲水印 | 可用 |
+| MLWM v1 神经网络图片水印 | Alpha，仅支持短载荷 |
+
+`mlwm-v1-alpha1` 是第一个已提升的神经网络图片水印候选模型，适合内部 alpha 测试和可控验证；暂不建议直接宣称为无需边界说明的产业级能力。
 
 ## 截图
 
@@ -52,7 +64,7 @@ LuminCrypt 是一款桌面安全工具箱，面向 **Unicode 隐藏字符检测*
 |---|---:|---|
 | Node.js | 18+ | Electron 和前端构建 |
 | npm | 9+ | 包管理 |
-| Python | 推荐 3.10+ | 图片水印后端需要 |
+| Python | 运行时 3.10+，ML 训练推荐 3.12 | 图片水印后端和 ML 训练工具需要 |
 
 ## 快速开始
 
@@ -78,6 +90,18 @@ npm run dev
 
 ```bash
 npm run typecheck
+```
+
+运行 Python 图片水印测试：
+
+```bash
+python -m unittest discover -s blind_watermark/tests
+```
+
+只有在训练或导出神经网络候选模型时，才需要安装 ML 训练依赖：
+
+```bash
+pip install -r blind_watermark/requirements-ml.txt
 ```
 
 ## 构建打包
@@ -119,9 +143,24 @@ LuminCrypt/
 |       `-- components/ # React 组件
 |-- blind_watermark/
 |   |-- rwm_engine.py   # 图片盲水印引擎
-|   `-- bwm_helper.py   # Electron 调用的 CLI 桥接
-`-- resources/          # 静态资源和打包二进制
+|   |-- bwm_helper.py   # Electron 调用的 CLI 桥接
+|   |-- mlwm/           # MLWM 神经网络水印训练、导出和推理模块
+|   `-- tests/          # Python 单元测试
+|-- configs/mlwm/       # MLWM 训练、导出和评测配置
+|-- docs/mlwm/          # MLWM 架构、训练和可追溯文档
+`-- resources/          # 静态资源、打包二进制和已提升的 ONNX 模型
 ```
+
+## MLWM v1 Alpha
+
+MLWM v1 是面向短文本或 ID 载荷的学习型鲁棒图片水印链路。它结合了固定 payload 协议、CRC 与 Reed-Solomon 恢复、经典同步思路、轻量 PyTorch 编码器/解码器，以及桌面端 ONNX Runtime 推理。
+
+相关文档：
+
+- [MLWM 架构](docs/mlwm/architecture.md)
+- [MLWM 训练](docs/mlwm/training.md)
+- [MLWM 可追溯方案](docs/mlwm/traceability.md)
+- [Benchmark 协议](docs/mlwm/benchmark_protocol.md)
 
 ## 关键词
 

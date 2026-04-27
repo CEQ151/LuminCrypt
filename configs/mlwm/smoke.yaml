@@ -1,0 +1,20 @@
+extends: configs/mlwm/base.yaml
+batch_size: 2
+grad_accum: 1
+image_size: 448
+stages:
+  warmup:
+    enabled: true
+    epochs: 1
+    freeze_encoder: true
+    fixed_residual_scale: 0.02
+    attack_strength: medium
+  main:
+    enabled: true
+    epochs: 1
+    freeze_encoder: false
+    attack_strength: medium
+  hard_negative:
+    enabled: false
+  finalize:
+    enabled: false

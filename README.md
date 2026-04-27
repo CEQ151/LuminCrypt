@@ -26,8 +26,20 @@ LuminCrypt is a desktop security toolkit for **Unicode hidden-character detectio
 - **Unicode hidden character detection**: finds zero-width characters, BiDi controls, homoglyphs, Unicode Tags, variation selectors, and non-standard spaces.
 - **Encrypted text watermarking**: embeds AES-256-GCM protected payloads into normal text with invisible Unicode carriers and robust redundancy.
 - **Blind image watermarking**: uses a Python image watermark engine based on block-DCT, QIM-style embedding, Reed-Solomon recovery, and multi-scale extraction.
+- **Learning-assisted robust watermarking**: includes an experimental MLWM v1 alpha engine for short image payloads, ONNX inference, attack simulation, benchmark manifests, and automatic fallback to the legacy image watermark engine.
 - **Batch processing and reports**: scans files in batches and exports detection results as JSON, CSV, or PDF.
 - **Local desktop workflow**: built with Electron, React, TypeScript, and a Python helper for image watermark processing.
+
+## Project Status
+
+| Area | Status |
+|---|---|
+| Unicode hidden-character detection | Usable |
+| Encrypted text watermarking | Usable |
+| Legacy image blind watermarking | Usable |
+| MLWM v1 neural image watermarking | Alpha, short payloads only |
+
+`mlwm-v1-alpha1` is the first promoted neural watermark candidate. It is suitable for internal alpha testing and controlled validation, not yet for unsupported industrial deployment claims.
 
 ## Screenshots
 
@@ -52,7 +64,7 @@ LuminCrypt is a desktop security toolkit for **Unicode hidden-character detectio
 |---|---:|---|
 | Node.js | 18+ | Electron and frontend build |
 | npm | 9+ | Package manager |
-| Python | 3.10+ recommended | Required for the image watermark backend |
+| Python | 3.10+ runtime, 3.12 recommended for ML | Required for the image watermark backend and ML training tools |
 
 ## Quick Start
 
@@ -78,6 +90,18 @@ Run TypeScript checks:
 
 ```bash
 npm run typecheck
+```
+
+Run Python image-watermark tests:
+
+```bash
+python -m unittest discover -s blind_watermark/tests
+```
+
+Install ML training dependencies only when you need to train or export candidate neural models:
+
+```bash
+pip install -r blind_watermark/requirements-ml.txt
 ```
 
 ## Build
@@ -119,9 +143,24 @@ LuminCrypt/
 |       `-- components/ # React components
 |-- blind_watermark/
 |   |-- rwm_engine.py   # Image blind watermark engine
-|   `-- bwm_helper.py   # CLI bridge used by Electron
-`-- resources/          # Static assets and packaged binaries
+|   |-- bwm_helper.py   # CLI bridge used by Electron
+|   |-- mlwm/           # MLWM neural watermark training, export, and inference modules
+|   `-- tests/          # Python unit tests
+|-- configs/mlwm/       # MLWM training, export, and evaluation configs
+|-- docs/mlwm/          # MLWM architecture, training, and traceability docs
+`-- resources/          # Static assets, packaged binaries, and promoted ONNX models
 ```
+
+## MLWM v1 Alpha
+
+MLWM v1 is a learning-assisted robust image watermark path for short text or ID payloads. It combines deterministic payload framing, CRC and Reed-Solomon recovery, classical synchronization ideas, lightweight PyTorch encoder/decoder models, and ONNX Runtime inference for desktop use.
+
+Useful references:
+
+- [MLWM Architecture](docs/mlwm/architecture.md)
+- [MLWM Training](docs/mlwm/training.md)
+- [MLWM Traceability](docs/mlwm/traceability.md)
+- [Benchmark Protocol](docs/mlwm/benchmark_protocol.md)
 
 ## Search Keywords
 

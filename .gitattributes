@@ -1,0 +1,4 @@
+resources/models/**/*.onnx filter=lfs diff=lfs merge=lfs -text
+artifacts/promoted/**/*.onnx filter=lfs diff=lfs merge=lfs -text
+artifacts/promoted/**/*.ckpt filter=lfs diff=lfs merge=lfs -text
+artifacts/promoted/**/*.safetensors filter=lfs diff=lfs merge=lfs -text

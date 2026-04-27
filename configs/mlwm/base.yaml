@@ -1,0 +1,59 @@
+seed: 20260426
+image_size: 512
+batch_size: 4
+grad_accum: 4
+num_workers: 8
+device: cuda
+amp: true
+max_text_bytes: 16
+payload_bits: 256
+train_dir: data/train_images
+val_dir: data/val_images
+artifacts_dir: artifacts/mlwm_v1
+promoted_dir: artifacts/promoted
+models_dir: resources/models/neural_wm
+optimizer:
+  lr: 0.0002
+  weight_decay: 0.00001
+loss:
+  payload_weight: 5.0
+  image_weight: 1.0
+  tv_weight: 0.05
+  residual_weight: 0.1
+stages:
+  warmup:
+    enabled: true
+    epochs: 10
+    freeze_encoder: true
+    fixed_residual_scale: 0.02
+    attack_strength: medium
+  main:
+    enabled: true
+    epochs: 40
+    freeze_encoder: false
+    attack_strength: medium
+  hard_negative:
+    enabled: true
+    epochs: 30
+    freeze_encoder: false
+    attack_strength: hard
+  finalize:
+    enabled: true
+    epochs: 10
+    freeze_encoder: false
+    attack_strength: mixed
+attack:
+  ops_per_sample:
+    min: 2
+    max: 5
+  jpeg_quality: [30, 95]
+  webp_quality: [25, 90]
+  resize_scale: [0.45, 1.4]
+  crop_keep: [0.8, 1.0]
+  rotation_deg: [-7.0, 7.0]
+  perspective_ratio: [0.0, 0.04]
+  gaussian_blur_sigma: [0.0, 2.0]
+  motion_blur_ksize: [3, 9]
+  gaussian_noise_std: [0.0, 0.0314]
+  overlay_area: [0.03, 0.15]
+  overlay_alpha: [0.15, 0.5]

@@ -18,14 +18,21 @@ from PyInstaller.utils.hooks import collect_all
 
 # rwm_engine is in pathex, no extra package to collect
 bwm_datas, bwm_binaries, bwm_hidden = [], [], []
+try:
+    ort_datas, ort_binaries, ort_hidden = collect_all('onnxruntime')
+except Exception:
+    ort_datas, ort_binaries, ort_hidden = [], [], []
 
 a = Analysis(
     ['blind_watermark/bwm_helper.py'],
     # Add the directory so rwm_engine is found at import time
     pathex=['blind_watermark'],
-    binaries=bwm_binaries,
-    datas=bwm_datas,
+    binaries=bwm_binaries + ort_binaries,
+    datas=bwm_datas + ort_datas,
     hiddenimports=bwm_hidden + [
+        'mlwm',
+        'mlwm.codec',
+        'mlwm.infer',
         # OpenCV
         'cv2',
         # NumPy / SciPy internals often missed by static analysis
@@ -37,7 +44,7 @@ a = Analysis(
         'scipy.ndimage',
         # Reed-Solomon error correction
         'reedsolo',
-    ],
+    ] + ort_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

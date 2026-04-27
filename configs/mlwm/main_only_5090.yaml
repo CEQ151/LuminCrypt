@@ -1,0 +1,26 @@
+extends: configs/mlwm/bootstrap_5090.yaml
+stages:
+  warmup:
+    enabled: true
+    epochs: 3
+    freeze_encoder: true
+    use_fixed_residual: true
+    fixed_residual_scale: 0.04
+    attack_strength: clean
+  main:
+    enabled: true
+    epochs: 12
+    freeze_encoder: false
+    freeze_decoder: true
+    encoder_teacher_weight: 20000.0
+    encoder_teacher_scale: 0.04
+    attack_strength: clean
+    loss:
+      payload_weight: 1.0
+      image_weight: 0.0
+      tv_weight: 0.0
+      residual_weight: 0.0
+  hard_negative:
+    enabled: false
+  finalize:
+    enabled: false

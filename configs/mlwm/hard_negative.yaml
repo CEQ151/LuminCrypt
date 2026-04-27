@@ -1,0 +1,16 @@
+extends: configs/mlwm/base.yaml
+stages:
+  warmup:
+    enabled: false
+  main:
+    enabled: false
+  hard_negative:
+    enabled: true
+    epochs: 30
+    freeze_encoder: false
+    attack_strength: hard
+  finalize:
+    enabled: true
+    epochs: 10
+    freeze_encoder: false
+    attack_strength: mixed

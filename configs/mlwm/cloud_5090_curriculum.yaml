@@ -1,0 +1,55 @@
+extends: configs/mlwm/base.yaml
+image_size: 512
+batch_size: 10
+grad_accum: 2
+num_workers: 16
+model:
+  residual_scale: 0.0392156862745098
+optimizer:
+  lr: 0.0002
+  weight_decay: 0.00001
+loss:
+  payload_weight: 8.0
+  image_weight: 0.8
+  tv_weight: 0.015
+  residual_weight: 0.03
+dashboard:
+  status_interval_batches: 1
+  sample_interval_batches: 10
+stages:
+  warmup:
+    enabled: true
+    epochs: 5
+    freeze_encoder: true
+    fixed_residual_scale: 0.035
+    attack_strength: medium
+  main:
+    enabled: true
+    epochs: 30
+    freeze_encoder: false
+    attack_strength: medium
+  hard_negative:
+    enabled: true
+    epochs: 20
+    freeze_encoder: false
+    attack_strength: hard
+  finalize:
+    enabled: true
+    epochs: 5
+    freeze_encoder: false
+    attack_strength: mixed
+attack:
+  ops_per_sample:
+    min: 1
+    max: 3
+  jpeg_quality: [45, 95]
+  webp_quality: [40, 90]
+  resize_scale: [0.55, 1.35]
+  crop_keep: [0.85, 1.0]
+  rotation_deg: [-4.0, 4.0]
+  perspective_ratio: [0.0, 0.025]
+  gaussian_blur_sigma: [0.0, 1.2]
+  motion_blur_ksize: [3, 7]
+  gaussian_noise_std: [0.0, 0.02]
+  overlay_area: [0.02, 0.12]
+  overlay_alpha: [0.12, 0.4]
