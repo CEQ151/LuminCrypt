@@ -38,7 +38,11 @@ def load_config(path: str) -> dict[str, Any]:
 def export_models(config: dict[str, Any], checkpoint_path: str, out_dir: str | None = None) -> dict[str, Any]:
   torch, _, _ = require_torch()
   ckpt = torch.load(checkpoint_path, map_location='cpu')
-  encoder, decoder = build_models(payload_bits=PAYLOAD_BITS)
+  model_cfg = config.get('model', {})
+  encoder, decoder = build_models(
+    payload_bits=PAYLOAD_BITS,
+    residual_scale=float(model_cfg.get('residual_scale', 8.0 / 255.0)),
+  )
   encoder.load_state_dict(ckpt['encoder'])
   decoder.load_state_dict(ckpt['decoder'])
   encoder.eval()
@@ -81,6 +85,12 @@ def export_models(config: dict[str, Any], checkpoint_path: str, out_dir: str | N
     'datasetManifestHash': ckpt.get('datasetManifestHash'),
     'exportTime': utc_now_iso(),
     'gitCommit': git_snapshot().get('commit'),
+    'checkpoint': {
+      'path': str(checkpoint_path),
+      'sha256': sha256_file(checkpoint_path),
+      'bestEpoch': ckpt.get('bestEpoch'),
+      'bestMetric': ckpt.get('bestMetric'),
+    },
     'encoder': {
       'path': encoder_path.name,
       'sha256': sha256_file(encoder_path),
