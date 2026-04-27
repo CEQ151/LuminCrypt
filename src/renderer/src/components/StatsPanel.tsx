@@ -3,17 +3,20 @@ import { motion } from 'framer-motion'
 import { ScanResult } from '../core/detector'
 import { Category, CATEGORY_META } from '../core/categories'
 import { ShieldCheck, ShieldWarning, ShieldSlash } from '@phosphor-icons/react'
+import { useI18n } from '../i18n'
+import type { I18nKey } from '../i18n'
 
 interface StatsPanelProps {
   result: ScanResult
 }
 
 function RiskGauge({ score }: { score: number }) {
+  const { t } = useI18n()
   const radius = 36
   const circumference = 2 * Math.PI * radius
   const strokeDash = (score / 100) * circumference
   const color = score < 30 ? '#22d3ee' : score < 65 ? '#f59e0b' : '#ef4444'
-  const label = score < 30 ? '低风险' : score < 65 ? '中等风险' : '高风险'
+  const label = score < 30 ? t('stats.low') : score < 65 ? t('stats.medium') : t('stats.high')
   const Icon = score < 30 ? ShieldCheck : score < 65 ? ShieldWarning : ShieldSlash
 
   return (
@@ -59,12 +62,12 @@ function RiskGauge({ score }: { score: number }) {
         </div>
         <p className="text-xs text-zinc-300 leading-relaxed max-w-[160px]">
           {score === 0
-            ? '未发现可疑字符。'
+            ? t('stats.msg.clean')
             : score < 30
-            ? '存在少量异常，可能属于正常使用。'
+            ? t('stats.msg.low')
             : score < 65
-            ? '发现多处可疑字符模式。'
-            : '强烈提示存在隐藏水印。'}
+            ? t('stats.msg.medium')
+            : t('stats.msg.high')}
         </p>
       </div>
     </div>
@@ -72,16 +75,17 @@ function RiskGauge({ score }: { score: number }) {
 }
 
 function ActionBadge({ score }: { score: number }) {
+  const { t } = useI18n()
   const cfg =
     score < 30
-      ? { text: '可忽略', color: '#22d3ee', bg: 'rgba(34,211,238,0.08)', border: 'rgba(34,211,238,0.2)' }
+      ? { text: t('stats.action.ignore'), color: '#22d3ee', bg: 'rgba(34,211,238,0.08)', border: 'rgba(34,211,238,0.2)' }
       : score < 65
-      ? { text: '建议清理', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' }
-      : { text: '建议重写', color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)' }
+      ? { text: t('stats.action.clean'), color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' }
+      : { text: t('stats.action.rewrite'), color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)' }
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-zinc-300">建议操作</span>
+      <span className="text-xs text-zinc-300">{t('stats.action')}</span>
       <span
         className="text-xs font-semibold px-2 py-0.5 rounded-full"
         style={{ color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}` }}
@@ -102,7 +106,18 @@ const CATEGORY_ORDER = [
   Category.TYPO_PUNCT,
 ] as const
 
+const CATEGORY_LABEL_KEYS: Record<Category, I18nKey> = {
+  [Category.ZERO_WIDTH]: 'category.zeroWidth',
+  [Category.CONTROL_BIDI]: 'category.bidi',
+  [Category.SPECIAL_SPACE]: 'category.specialSpace',
+  [Category.TAGS_BLOCK]: 'category.tagsBlock',
+  [Category.HOMOGLYPH]: 'category.homoglyph',
+  [Category.VARIATION_SELECTOR]: 'category.variation',
+  [Category.TYPO_PUNCT]: 'category.typoPunct',
+}
+
 export default function StatsPanel({ result }: StatsPanelProps) {
+  const { t } = useI18n()
   const activeCategories = useMemo(
     () => CATEGORY_ORDER.filter((c) => result.stats.has(c)),
     [result]
@@ -114,7 +129,7 @@ export default function StatsPanel({ result }: StatsPanelProps) {
       <div className="desktop-panel p-4">
         <div className="flex items-baseline gap-2 mb-4">
           <span className="text-base text-white leading-none font-display tracking-[0.02em]">
-            风险评估
+            {t('stats.risk')}
           </span>
           <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-[0.15em]">Risk</span>
         </div>
@@ -130,9 +145,9 @@ export default function StatsPanel({ result }: StatsPanelProps) {
       <div className="grid grid-cols-3 gap-2">
         {(
           [
-            { label: '字符总数', value: result.totalChars.toLocaleString() },
-            { label: '可疑字符', value: result.suspiciousCount.toLocaleString() },
-            { label: '扫描耗时', value: `${result.scanDurationMs.toFixed(1)}ms` },
+            { label: t('stats.totalChars'), value: result.totalChars.toLocaleString() },
+            { label: t('stats.suspiciousChars'), value: result.suspiciousCount.toLocaleString() },
+            { label: t('stats.duration'), value: `${result.scanDurationMs.toFixed(1)}ms` },
           ]
         ).map(({ label, value }, idx) => (
           <motion.div
@@ -153,7 +168,7 @@ export default function StatsPanel({ result }: StatsPanelProps) {
         <div className="desktop-panel overflow-hidden">
           <div className="flex items-baseline gap-2 px-4 pt-3.5 pb-2">
             <span className="text-base text-white leading-none font-display tracking-[0.02em]">
-              分类明细
+              {t('stats.byCategory')}
             </span>
             <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-[0.15em]">By Category</span>
           </div>
@@ -176,7 +191,7 @@ export default function StatsPanel({ result }: StatsPanelProps) {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-200">{meta.label}</span>
+                      <span className="text-xs text-zinc-200">{t(CATEGORY_LABEL_KEYS[cat])}</span>
                       <span className="font-mono text-xs font-semibold text-white tabular-nums ml-2">
                         {catStat.count}
                       </span>
@@ -202,7 +217,7 @@ export default function StatsPanel({ result }: StatsPanelProps) {
       {activeCategories.length === 0 && result.suspiciousCount === 0 && (
         <div className="flex flex-col items-center gap-2 py-6 text-center">
           <ShieldCheck size={28} weight="thin" className="text-cyan-400/40" />
-          <p className="text-xs text-zinc-600">No suspicious characters found</p>
+          <p className="text-xs text-zinc-600">{t('stats.none')}</p>
         </div>
       )}
     </div>

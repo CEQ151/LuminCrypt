@@ -8,6 +8,7 @@ export interface Settings {
   thresholds: { lowMid: number; midHigh: number }
   clipboardEnabled: boolean
   clipboardIntervalMs: number
+  language: 'system' | 'zh-CN' | 'en'
 }
 
 const ALL_CATEGORIES = Object.values(Category) as Category[]
@@ -19,6 +20,7 @@ export const DEFAULT_SETTINGS: Settings = {
   thresholds: { lowMid: 30, midHigh: 65 },
   clipboardEnabled: false,
   clipboardIntervalMs: 1500,
+  language: 'system',
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -52,6 +54,7 @@ function mergeWithDefaults(stored: Record<string, unknown>): Settings {
     clipboardEnabled: (stored.clipboardEnabled as boolean) ?? DEFAULT_SETTINGS.clipboardEnabled,
     clipboardIntervalMs:
       (stored.clipboardIntervalMs as number) ?? DEFAULT_SETTINGS.clipboardIntervalMs,
+    language: (stored.language as Settings['language']) ?? DEFAULT_SETTINGS.language,
   }
 }
 

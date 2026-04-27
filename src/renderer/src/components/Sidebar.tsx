@@ -7,24 +7,25 @@ import {
   Clipboard,
   ImagesSquare,
 } from '@phosphor-icons/react'
+import { I18nKey, useI18n } from '../i18n'
 
 export type PageId = 'detect' | 'batch' | 'watermark' | 'settings'
 
 interface NavItem {
   id: PageId
-  label: string
+  labelKey: I18nKey
   icon: React.ReactNode
   bottom?: boolean
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'detect', label: '检测', icon: <MagnifyingGlass size={18} weight="regular" /> },
-  { id: 'batch', label: '批量', icon: <Tray size={18} weight="regular" /> },
-  { id: 'watermark', label: '水印', icon: <Fingerprint size={18} weight="regular" /> },
+  { id: 'detect', labelKey: 'nav.detect', icon: <MagnifyingGlass size={18} weight="regular" /> },
+  { id: 'batch', labelKey: 'nav.batch', icon: <Tray size={18} weight="regular" /> },
+  { id: 'watermark', labelKey: 'nav.watermark', icon: <Fingerprint size={18} weight="regular" /> },
 ]
 
 const BOTTOM_ITEMS: NavItem[] = [
-  { id: 'settings', label: '设置', icon: <GearSix size={18} weight="regular" />, bottom: true },
+  { id: 'settings', labelKey: 'nav.settings', icon: <GearSix size={18} weight="regular" />, bottom: true },
 ]
 
 interface SidebarProps {
@@ -44,11 +45,13 @@ export default function Sidebar({
   onBgSwitcher,
   bgActive,
 }: SidebarProps) {
+  const { t } = useI18n()
+
   return (
     <div className="w-[62px] flex-shrink-0 flex flex-col border-r border-white/[0.08] bg-[#07070b]/88 backdrop-blur-md relative z-10">
       {/* Top nav items */}
       <div className="flex flex-col items-center gap-2 pt-3.5 flex-1">
-        {NAV_ITEMS.map(({ id, label, icon }, index) => (
+        {NAV_ITEMS.map(({ id, labelKey, icon }, index) => (
           <motion.div
             key={id}
             initial={{ opacity: 0, x: -12 }}
@@ -57,7 +60,7 @@ export default function Sidebar({
           >
             <NavButton
               active={activePage === id}
-              label={label}
+              label={t(labelKey)}
               onClick={() => onNavigate(id)}
             >
               {icon}
@@ -87,7 +90,7 @@ export default function Sidebar({
           >
             <ImagesSquare size={17} weight={bgActive ? 'duotone' : 'regular'} />
           </button>
-          <Tooltip label="更换背景" />
+          <Tooltip label={t('nav.background')} />
         </div>
 
         {/* Clipboard toggle */}
@@ -113,14 +116,14 @@ export default function Sidebar({
               />
             )}
           </button>
-          <Tooltip label={clipboardActive ? '剪贴板监听中' : '剪贴板监听'} />
+          <Tooltip label={clipboardActive ? t('nav.clipboardOn') : t('nav.clipboard')} />
         </div>
 
-        {BOTTOM_ITEMS.map(({ id, label, icon }) => (
+        {BOTTOM_ITEMS.map(({ id, labelKey, icon }) => (
           <NavButton
             key={id}
             active={activePage === id}
-            label={label}
+            label={t(labelKey)}
             onClick={() => onNavigate(id)}
           >
             {icon}

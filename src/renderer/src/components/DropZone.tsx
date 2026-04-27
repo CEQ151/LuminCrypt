@@ -2,6 +2,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { FileText, FilePdf, FileDoc, UploadSimple, X, WarningCircle } from '@phosphor-icons/react'
 import { parseFile } from '../core/parsers'
+import { useI18n } from '../i18n'
 
 interface DropZoneProps {
   text: string
@@ -10,6 +11,7 @@ interface DropZoneProps {
 }
 
 export default function DropZone({ text, onChange, disabled }: DropZoneProps) {
+  const { t } = useI18n()
   const [isDragging, setIsDragging] = useState(false)
   const [isParsing, setIsParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
@@ -64,7 +66,7 @@ export default function DropZone({ text, onChange, disabled }: DropZoneProps) {
       <div className="flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-cyan-300/60 uppercase tracking-widest">
-            输入文本
+            {t('drop.label')}
           </span>
           {fileName && (
             <span className="flex items-center gap-1 text-xs text-zinc-300 bg-white/5 px-2 py-0.5 rounded-full">
@@ -82,7 +84,7 @@ export default function DropZone({ text, onChange, disabled }: DropZoneProps) {
         <div className="flex items-center gap-3">
           {charCount > 0 && (
             <span className="text-xs text-zinc-600 font-mono tabular-nums">
-              {charCount.toLocaleString()} 字符
+              {t('drop.chars', { count: charCount.toLocaleString() })}
             </span>
           )}
           <button
@@ -96,7 +98,7 @@ export default function DropZone({ text, onChange, disabled }: DropZoneProps) {
             "
           >
             <UploadSimple size={13} weight="regular" />
-            <span>导入文件</span>
+            <span>{t('drop.import')}</span>
           </button>
           <input
             ref={fileInputRef}
@@ -128,7 +130,7 @@ export default function DropZone({ text, onChange, disabled }: DropZoneProps) {
               <div className="w-10 h-10 rounded-xl bg-cyan-400/10 border border-cyan-400/30 flex items-center justify-center">
                 <UploadSimple size={20} weight="regular" className="text-cyan-400" />
               </div>
-              <span className="text-sm text-cyan-300 font-medium">松开以导入文件</span>
+              <span className="text-sm text-cyan-300 font-medium">{t('drop.release')}</span>
               <span className="text-xs text-cyan-400/60">.txt .md .docx .pdf</span>
             </motion.div>
           )}
@@ -161,7 +163,7 @@ export default function DropZone({ text, onChange, disabled }: DropZoneProps) {
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           disabled={disabled}
-          placeholder="粘贴或输入文本 — 或拖入 .txt .md .docx .pdf 文件…"
+          placeholder={t('drop.placeholder')}
           className="
             w-full h-full
             desktop-input
@@ -199,7 +201,7 @@ export default function DropZone({ text, onChange, disabled }: DropZoneProps) {
                 <FileDoc size={14} />
               </div>
               <span className="text-xs text-zinc-700 whitespace-nowrap">
-                Supports .txt .md .docx .pdf
+                {t('drop.supports')}
               </span>
             </motion.div>
           )}
