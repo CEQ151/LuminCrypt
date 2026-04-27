@@ -35,6 +35,13 @@ def load_config(path: str) -> dict[str, Any]:
   return data
 
 
+def resolve_export_image_size(config: dict[str, Any]) -> int:
+  requested = int(config.get('export', {}).get('image_size') or config.get('image_size', 512))
+  if requested % 128 == 0:
+    return requested
+  return ((requested + 127) // 128) * 128
+
+
 def export_models(config: dict[str, Any], checkpoint_path: str, out_dir: str | None = None) -> dict[str, Any]:
   torch, _, _ = require_torch()
   ckpt = torch.load(checkpoint_path, map_location='cpu')
@@ -53,7 +60,9 @@ def export_models(config: dict[str, Any], checkpoint_path: str, out_dir: str | N
   encoder_path = models_dir / 'encoder.onnx'
   decoder_path = models_dir / 'decoder.onnx'
 
-  dummy_image = torch.randn(1, 3, int(config.get('image_size', 512)), int(config.get('image_size', 512)))
+  trained_image_size = int(config.get('image_size', 512))
+  export_image_size = resolve_export_image_size(config)
+  dummy_image = torch.randn(1, 3, export_image_size, export_image_size)
   dummy_bits = torch.randint(0, 2, (1, PAYLOAD_BITS)).float()
 
   torch.onnx.export(
@@ -81,6 +90,8 @@ def export_models(config: dict[str, Any], checkpoint_path: str, out_dir: str | N
     'modelVersion': 'mlwm-v1-export',
     'status': 'ready',
     'engine': 'neural',
+    'imageSize': export_image_size,
+    'trainedImageSize': trained_image_size,
     'trainingConfigId': config_hash(config),
     'datasetManifestHash': ckpt.get('datasetManifestHash'),
     'exportTime': utc_now_iso(),

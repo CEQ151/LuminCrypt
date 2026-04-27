@@ -90,6 +90,10 @@ def _prepare_image(image_rgb: np.ndarray, image_size: int = 512) -> np.ndarray:
   return (resized.astype(np.float32) / 255.0).transpose(2, 0, 1)[None, ...]
 
 
+def _manifest_image_size(manifest: dict[str, Any]) -> int:
+  return int(manifest.get('imageSize') or 512)
+
+
 def _resize_residual(residual: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
   h, w = shape
   residual = residual.squeeze(0).transpose(1, 2, 0)
@@ -114,7 +118,7 @@ def neural_encode_residual(
   if not status.ready:
     raise NeuralRuntimeUnavailable('neural models are not ready')
   session = _load_encoder_session(str(status.encoder_path), use_cuda)
-  image_input = _prepare_image(image_rgb)
+  image_input = _prepare_image(image_rgb, _manifest_image_size(status.manifest))
   payload_input = _bits_array(payload_bits)
   outputs = session.run(None, {'image': image_input, 'payload_bits': payload_input})
   residual = np.asarray(outputs[0], dtype=np.float32)
@@ -151,7 +155,7 @@ def neural_decode_views(
   weighted_logits = np.zeros(PAYLOAD_BITS, dtype=np.float32)
   total_weight = 0.0
   for index, view in enumerate(views_rgb):
-    outputs = session.run(None, {'image': _prepare_image(view)})
+    outputs = session.run(None, {'image': _prepare_image(view, _manifest_image_size(status.manifest))})
     logits = np.asarray(outputs[0], dtype=np.float32).reshape(-1)
     confidence_logit = float(np.asarray(outputs[1], dtype=np.float32).reshape(-1)[0])
     confidence = 1.0 / (1.0 + np.exp(-confidence_logit))
