@@ -1,8 +1,10 @@
 ﻿import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Finding } from '../core/detector'
-import { CATEGORY_META } from '../core/categories'
+import { Category, CATEGORY_META } from '../core/categories'
 import { X, Copy } from '@phosphor-icons/react'
+import { useI18n } from '../i18n'
+import type { I18nKey } from '../i18n'
 
 interface CharTooltipProps {
   finding: Finding
@@ -11,7 +13,18 @@ interface CharTooltipProps {
   onClose: () => void
 }
 
+const CATEGORY_LABEL_KEYS: Record<Category, I18nKey> = {
+  [Category.ZERO_WIDTH]: 'category.zeroWidth',
+  [Category.CONTROL_BIDI]: 'category.bidi',
+  [Category.SPECIAL_SPACE]: 'category.specialSpace',
+  [Category.TAGS_BLOCK]: 'category.tagsBlock',
+  [Category.HOMOGLYPH]: 'category.homoglyph',
+  [Category.VARIATION_SELECTOR]: 'category.variation',
+  [Category.TYPO_PUNCT]: 'category.typoPunct',
+}
+
 export default function CharTooltip({ finding, x, y, onClose }: CharTooltipProps) {
+  const { t } = useI18n()
   const ref = useRef<HTMLDivElement>(null)
   const meta = CATEGORY_META[finding.category]
   const codePointStr = `U+${finding.codePoint.toString(16).toUpperCase().padStart(4, '0')}`
@@ -68,7 +81,7 @@ export default function CharTooltip({ finding, x, y, onClose }: CharTooltipProps
       <div className="flex items-start justify-between gap-2 mb-3">
         <div>
           <span className={`text-[10px] font-semibold uppercase tracking-widest ${meta.textColor}`}>
-            {meta.label}
+            {t(CATEGORY_LABEL_KEYS[finding.category])}
           </span>
           <p className="text-xs font-medium text-zinc-200 mt-0.5 leading-snug">
             {finding.label}
@@ -88,7 +101,7 @@ export default function CharTooltip({ finding, x, y, onClose }: CharTooltipProps
         <button
           onClick={copyCode}
           className="text-zinc-600 hover:text-zinc-200 transition-colors cursor-pointer"
-          title="复制码点"
+          title={t('tooltip.copyCode')}
         >
           <Copy size={12} />
         </button>
@@ -99,7 +112,7 @@ export default function CharTooltip({ finding, x, y, onClose }: CharTooltipProps
 
       {finding.latinEquivalent && (
         <div className="flex items-center gap-2 text-xs text-zinc-300">
-          <span className="text-zinc-600">形似：</span>
+          <span className="text-zinc-600">{t('tooltip.looksLike')}</span>
           <span className="font-mono text-white bg-white/5 px-1.5 py-0.5 rounded">
             {finding.latinEquivalent}
           </span>
@@ -111,7 +124,7 @@ export default function CharTooltip({ finding, x, y, onClose }: CharTooltipProps
 
       <div className="mt-3 pt-3 border-t border-white/[0.06]">
         <div className="flex items-center justify-between text-[10px] text-zinc-600">
-          <span>位置</span>
+          <span>{t('tooltip.position')}</span>
           <span className="font-mono text-zinc-300">{finding.index.toLocaleString()}</span>
         </div>
       </div>

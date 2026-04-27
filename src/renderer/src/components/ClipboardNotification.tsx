@@ -1,5 +1,6 @@
 ﻿import { motion } from 'framer-motion'
 import { Clipboard, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { useI18n } from '../i18n'
 
 interface ClipboardNotificationProps {
   text: string
@@ -12,6 +13,7 @@ export default function ClipboardNotification({
   onScan,
   onDismiss,
 }: ClipboardNotificationProps) {
+  const { t } = useI18n()
   const preview = text.length > 60 ? text.slice(0, 60).replace(/\n/g, ' ') + '…' : text.replace(/\n/g, ' ')
 
   return (
@@ -32,7 +34,7 @@ export default function ClipboardNotification({
           className="flex items-center gap-1.5 text-xs text-amber-200 hover:text-white bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/25 px-2.5 py-1 rounded-lg transition-all duration-300 cursor-pointer no-drag"
         >
           <MagnifyingGlass size={11} weight="regular" />
-          扫描
+          {t('clipboard.scan')}
         </button>
         <button
           onClick={onDismiss}

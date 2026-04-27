@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { motion, useMotionValue, useTransform } from 'framer-motion'
 import { MagnifyingGlass, CircleNotch } from '@phosphor-icons/react'
+import { useI18n } from '../i18n'
 
 interface ScanButtonProps {
   onClick: () => void
@@ -9,6 +10,7 @@ interface ScanButtonProps {
 }
 
 export default function ScanButton({ onClick, disabled, scanning }: ScanButtonProps) {
+  const { t } = useI18n()
   const ref = useRef<HTMLButtonElement>(null)
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
@@ -77,9 +79,9 @@ export default function ScanButton({ onClick, disabled, scanning }: ScanButtonPr
         ) : (
           <MagnifyingGlass size={15} weight="regular" />
         )}
-        <span>{scanning ? '扫描中...' : '扫描文本'}</span>
+        <span>{scanning ? t('common.scanning') : t('scan.button')}</span>
         {!disabled && !scanning && (
-          <span className="ml-1 text-[10px] text-white/40 font-mono">⌘↵</span>
+          <span className="ml-1 text-[10px] text-white/40 font-mono">Ctrl+Enter</span>
         )}
       </span>
     </motion.button>

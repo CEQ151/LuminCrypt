@@ -17,9 +17,12 @@ import { useWatermark } from '../hooks/useWatermark'
 import { CarrierClass } from '../core/watermark'
 import { PoisonOptions, PoisonDensity } from '../core/poisoner'
 import { ImageWatermarkPanel } from './ImageWatermarkPanel'
+import { useI18n } from '../i18n'
+import type { I18nKey } from '../i18n'
 
 // ── Reusable copy button ──────────────────────────────────────────────────────
 function CopyButton({ text }: { text: string }) {
+  const { t } = useI18n()
   const [copied, setCopied] = useState(false)
   const handleCopy = useCallback(async () => {
     await navigator.clipboard.writeText(text)
@@ -29,11 +32,11 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      title="Copy to clipboard"
-      className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-zinc-200 transition-colors cursor-pointer no-drag px-2 py-1 rounded hover:bg-white/[0.06]"
+      title={t('common.copy')}
+      className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white transition-colors cursor-pointer no-drag px-2.5 py-1.5 rounded-lg hover:bg-white/[0.08]"
     >
       {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-      {copied ? 'Copied' : 'Copy'}
+      {copied ? t('common.copied') : t('common.copy')}
     </button>
   )
 }
@@ -63,7 +66,7 @@ function TextArea({
   return (
     <div className={`flex flex-col gap-1.5 ${grow ? 'flex-1 min-h-0' : ''}`}>
       <div className="flex items-center justify-between flex-shrink-0">
-        <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">{label}</span>
+        <span className="text-sm font-semibold text-zinc-200">{label}</span>
         {extra}
       </div>
       <textarea
@@ -78,7 +81,7 @@ function TextArea({
           border border-white/[0.06] focus:border-cyan-400/20
           text-sm text-white leading-relaxed resize-none
           px-4 py-3.5 focus:outline-none
-          placeholder:text-zinc-700 transition-all duration-300
+          placeholder:text-zinc-500 transition-all duration-300
           ${mono ? 'font-mono' : 'font-body'}
           ${readOnly ? 'opacity-80 cursor-default' : ''}
           ${grow ? 'flex-1 min-h-0 h-full' : ''}
@@ -98,32 +101,31 @@ function KeyInput({
   onChange: (v: string) => void
   placeholder?: string
 }) {
+  const { t } = useI18n()
   const [show, setShow] = useState(false)
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
-        密钥（可选）
-      </span>
+      <span className="text-sm font-semibold text-zinc-200">{t('text.key')}</span>
       <div className="relative">
-        <Key size={13} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
+        <Key size={14} weight="regular" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
         <input
           type={show ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder ?? '留空则无密钥保护'}
+          placeholder={placeholder ?? t('text.keyPlaceholder')}
           spellCheck={false}
           className="
             w-full bg-black/25 rounded-lg
             border border-white/[0.07] focus:border-white/[0.18]
             text-sm text-white pl-8 pr-10 py-2.5
-            focus:outline-none placeholder:text-zinc-700
+            focus:outline-none placeholder:text-zinc-500
             transition-colors duration-200
           "
         />
         <button
           type="button"
           onClick={() => setShow((v) => !v)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-white transition-colors cursor-pointer"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer"
         >
           {show ? <LockOpen size={13} weight="regular" /> : <LockKey size={13} weight="regular" />}
         </button>
@@ -136,7 +138,7 @@ function KeyInput({
 function StatusBadge({ ok, message }: { ok: boolean; message: string }) {
   return (
     <div
-      className={`flex items-start gap-2 rounded-lg px-3.5 py-2.5 text-xs leading-relaxed
+      className={`flex items-start gap-2 rounded-lg px-3.5 py-2.5 text-sm leading-relaxed
         ${ok ? 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-300' : 'bg-red-500/10 border border-red-500/25 text-red-300'}`}
     >
       <Info size={13} weight="regular" className="flex-shrink-0 mt-0.5" />
@@ -163,6 +165,7 @@ function ActionButton({
   loadingLabel?: string
   color?: 'blue' | 'violet' | 'amber'
 }) {
+  const { t } = useI18n()
   const colors = {
     blue: 'bg-[#3b7cd4] hover:bg-[#4a8ae0]',
     violet: 'bg-violet-600 hover:bg-violet-500',
@@ -182,7 +185,7 @@ function ActionButton({
       `}
     >
       {icon}
-      {loading ? (loadingLabel ?? '处理中…') : label}
+      {loading ? (loadingLabel ?? t('img.extracting')) : label}
     </button>
   )
 }
@@ -190,14 +193,15 @@ function ActionButton({
 // ─────────────────────────────────────────────────────────────────────────────
 // EMBED SUB-PANEL
 // ─────────────────────────────────────────────────────────────────────────────
-const CARRIER_CLASS_OPTIONS: Array<{ id: CarrierClass; label: string; desc: string }> = [
-  { id: 'zeroWidth', label: '零宽字符', desc: 'U+200B/C/D/2060' },
-  { id: 'mathInvisible', label: '不可见运算符', desc: 'U+2061–2064' },
-  { id: 'variationSelector', label: '变体选择符', desc: 'U+FE00–FE03' },
-  { id: 'specialSpace', label: '特殊空格', desc: 'U+200A/2009 等' },
+const CARRIER_CLASS_OPTIONS: Array<{ id: CarrierClass; labelKey: I18nKey; descKey: I18nKey }> = [
+  { id: 'zeroWidth', labelKey: 'text.carrier.zeroWidth', descKey: 'text.carrier.zeroWidthDesc' },
+  { id: 'mathInvisible', labelKey: 'text.carrier.mathInvisible', descKey: 'text.carrier.mathInvisibleDesc' },
+  { id: 'variationSelector', labelKey: 'text.carrier.variationSelector', descKey: 'text.carrier.variationSelectorDesc' },
+  { id: 'specialSpace', labelKey: 'text.carrier.specialSpace', descKey: 'text.carrier.specialSpaceDesc' },
 ]
 
 function EmbedPanel() {
+  const { t } = useI18n()
   const [hostText, setHostText] = useState('')
   const [message, setMessage] = useState('')
   const [key, setKey] = useState('')
@@ -225,27 +229,29 @@ function EmbedPanel() {
     <div className="flex flex-col gap-4 h-full">
       <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
         <TextArea
-          label="宿主文本"
+          label={t('text.host')}
           value={hostText}
           onChange={setHostText}
-          placeholder="粘贴要嵌入水印的原文…"
+          placeholder={t('text.hostPlaceholder')}
           rows={10}
         />
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <TextArea
-              label="水印消息（明文）"
+              label={t('text.message')}
               value={message}
               onChange={setMessage}
-              placeholder="输入要隐藏的信息，支持中英文…"
+              placeholder={t('text.messagePlaceholder')}
               rows={4}
             />
             {message && (
               <p className="text-[10px] text-zinc-600 px-1">
-                {Array.from(message).length} 字符 ={' '}
-                {new TextEncoder().encode(message).length} 字节
+                {t('text.messageStats', {
+                  chars: Array.from(message).length,
+                  bytes: new TextEncoder().encode(message).length,
+                })}
                 {new TextEncoder().encode(message).length > 300 && (
-                  <span className="text-amber-500/80"> · 消息较长，请确保宿主文本足够长</span>
+                  <span className="text-amber-500/80"> · {t('text.messageLong')}</span>
                 )}
               </p>
             )}
@@ -254,9 +260,9 @@ function EmbedPanel() {
 
           {/* Carrier class selector */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">载体字符类型</span>
+            <span className="text-sm font-semibold text-zinc-200">{t('text.carriers')}</span>
             <div className="grid grid-cols-2 gap-1">
-              {CARRIER_CLASS_OPTIONS.map(({ id, label, desc }) => (
+              {CARRIER_CLASS_OPTIONS.map(({ id, labelKey, descKey }) => (
                 <label
                   key={id}
                   className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/[0.04] cursor-pointer transition-colors"
@@ -272,8 +278,8 @@ function EmbedPanel() {
                     {carrierMask[id] && <Check size={9} weight="bold" className="text-white" />}
                   </div>
                   <div className="min-w-0">
-                    <span className="text-[11px] text-white">{label}</span>
-                    <span className="text-[9px] text-zinc-600 ml-1">{desc}</span>
+                    <span className="text-xs text-white">{t(labelKey)}</span>
+                    <span className="text-[10px] text-zinc-400 ml-1">{t(descKey)}</span>
                   </div>
                 </label>
               ))}
@@ -281,10 +287,10 @@ function EmbedPanel() {
             {enabledCount < 4 && (
               <p className="text-[9px] text-amber-500/70 px-1">
                 {enabledCount <= 1
-                  ? '仅 4 个载体字符，水印长度约增加 2 倍'
+                  ? t('text.carrierWarn.one')
                   : enabledCount === 2
-                    ? '8 个载体字符，水印长度约增加 33%'
-                    : '实际使用前 2 类（8 字符），第 3 类不参与编码'}
+                    ? t('text.carrierWarn.two')
+                    : t('text.carrierWarn.three')}
               </p>
             )}
           </div>
@@ -297,7 +303,7 @@ function EmbedPanel() {
                   profile === 'balanced' ? 'bg-white/[0.12] text-zinc-200' : 'text-zinc-500 hover:text-zinc-200'
                 }`}
               >
-                鲁棒-均衡
+                {t('text.profile.balanced')}
               </button>
               <button
                 onClick={() => setProfile('strong')}
@@ -305,7 +311,7 @@ function EmbedPanel() {
                   profile === 'strong' ? 'bg-white/[0.12] text-zinc-200' : 'text-zinc-500 hover:text-zinc-200'
                 }`}
               >
-                鲁棒-增强
+                {t('text.profile.strong')}
               </button>
             </div>
             <ActionButton
@@ -317,12 +323,13 @@ function EmbedPanel() {
               disabled={!message.trim() || !hostText.trim()}
               loading={embedStatus === 'working'}
               icon={<Fingerprint size={15} weight="regular" />}
-              label="嵌入水印"
+              label={t('text.embed')}
+              loadingLabel={t('img.embedding')}
               color="blue"
             />
             {embedResult && (
               <span className="text-xs text-zinc-600">
-                已嵌入 {embedResult.charCount} 个不可见字符
+                {t('text.embedCount', { count: embedResult.charCount })}
               </span>
             )}
           </div>
@@ -339,7 +346,7 @@ function EmbedPanel() {
             className="flex flex-col gap-1.5"
           >
             <TextArea
-              label="含水印文本（可直接复制使用）"
+              label={t('text.watermarkedResult')}
               value={embedResult.watermarked}
               readOnly
               rows={6}
@@ -347,7 +354,11 @@ function EmbedPanel() {
               extra={<CopyButton text={embedResult.watermarked} />}
             />
             <p className="text-[10px] text-zinc-600 px-1">
-              共 {embedResult.bitCount} bits → {embedResult.charCount} 个不可见字符，已随机散布于宿主文本 {Array.from(hostText).length} 个字符中
+              {t('text.watermarkedHint', {
+                bits: embedResult.bitCount,
+                chars: embedResult.charCount,
+                hostChars: Array.from(hostText).length,
+              })}
             </p>
           </motion.div>
         )}
@@ -360,6 +371,7 @@ function EmbedPanel() {
 // DECODE SUB-PANEL
 // ─────────────────────────────────────────────────────────────────────────────
 function DecodePanel() {
+  const { t } = useI18n()
   const [inputText, setInputText] = useState('')
   const [key, setKey] = useState('')
   const { decodeStatus, decodeResult, runDecode } = useWatermark()
@@ -368,20 +380,20 @@ function DecodePanel() {
     <div className="flex flex-col gap-4 h-full">
       <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
         <TextArea
-          label="待检测文本（粘贴含水印的文本）"
+          label={t('text.input')}
           value={inputText}
           onChange={setInputText}
-          placeholder="粘贴含水印的文本，软件将自动提取并解密水印…"
+          placeholder={t('text.inputPlaceholder')}
           rows={10}
         />
         <div className="flex flex-col gap-4">
-          <KeyInput value={key} onChange={setKey} placeholder="若水印有密钥保护，在此输入" />
+          <KeyInput value={key} onChange={setKey} placeholder={t('text.keyDecodePlaceholder')} />
           <ActionButton
             onClick={() => runDecode(inputText, key)}
             disabled={!inputText.trim()}
             loading={decodeStatus === 'working'}
             icon={<LockOpen size={15} weight="regular" />}
-            label="解密水印"
+            label={t('text.decrypt')}
             color="violet"
           />
 
@@ -395,12 +407,10 @@ function DecodePanel() {
               >
                 {decodeResult.success ? (
                   <>
-                    <StatusBadge ok={true} message="成功解密水印" />
+                    <StatusBadge ok={true} message={t('text.decryptSuccess')} />
                     <div className="bg-black/25 rounded-xl border border-emerald-500/20 px-4 py-3">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
-                          水印明文
-                        </span>
+                        <span className="text-sm font-semibold text-zinc-200">{t('text.plain')}</span>
                         <CopyButton text={decodeResult.message ?? ''} />
                       </div>
                       <p className="text-sm text-emerald-300 font-['Geist',sans-serif] leading-relaxed break-all">
@@ -409,24 +419,26 @@ function DecodePanel() {
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-zinc-600">
                       {decodeResult.hasKey ? (
-                        <><LockKey size={11} weight="regular" /> 加密水印（密钥解密）</>
+                        <><LockKey size={11} weight="regular" /> {t('text.keyed')}</>
                       ) : (
-                        <><LockOpen size={11} weight="regular" /> 明文水印（无密钥）</>
+                        <><LockOpen size={11} weight="regular" /> {t('text.unkeyed')}</>
                       )}
                     </div>
                     {typeof decodeResult.confidence === 'number' && (
                       <div className="text-xs text-zinc-500">
-                        置信度: {decodeResult.confidence}%
+                        {t('text.confidenceLine', { value: decodeResult.confidence })}
                         {decodeResult.diagnostics?.strategyUsed && ` · ${decodeResult.diagnostics.strategyUsed}`}
                       </div>
                     )}
                     {decodeResult.diagnostics?.recoveredShards !== undefined &&
                       decodeResult.diagnostics?.totalShards !== undefined && (
                         <div className="text-[11px] text-zinc-600">
-                          恢复分片: {decodeResult.diagnostics.recoveredShards}/
-                          {decodeResult.diagnostics.totalShards}
+                          {t('text.shards', {
+                            recovered: decodeResult.diagnostics.recoveredShards,
+                            total: decodeResult.diagnostics.totalShards,
+                          })}
                           {decodeResult.diagnostics.shardAgreement !== undefined &&
-                            ` · 一致性 ${Math.round(decodeResult.diagnostics.shardAgreement * 100)}%`}
+                            ` · ${t('text.agreement', { value: Math.round(decodeResult.diagnostics.shardAgreement * 100) })}`}
                         </div>
                     )}
                   </>
@@ -435,8 +447,8 @@ function DecodePanel() {
                     ok={false}
                     message={
                       decodeResult.hasKey && !key
-                        ? '此水印需要密钥才能解密，请在上方输入密钥后重试'
-                        : (decodeResult.error ?? '解密失败')
+                        ? t('text.needsKey')
+                        : (decodeResult.error ?? t('text.decryptFail'))
                     }
                   />
                 )}
@@ -452,16 +464,21 @@ function DecodePanel() {
 // ─────────────────────────────────────────────────────────────────────────────
 // POISON SUB-PANEL
 // ─────────────────────────────────────────────────────────────────────────────
-const POISON_CATEGORIES: Array<{ key: keyof Omit<PoisonOptions, 'density'>; label: string; description: string }> = [
-  { key: 'zeroWidth', label: '零宽字符', description: 'U+200B/200C/2060 等，完全不可见' },
-  { key: 'homoglyphs', label: '同形字符', description: '西里尔/希腊字母替换 Latin 字母' },
-  { key: 'bidiControl', label: 'BiDi 控制符', description: '双向文本控制，可反转显示顺序' },
-  { key: 'specialSpace', label: '特殊空格', description: 'Hair/Thin/Punctuation Space 等' },
-  { key: 'tagsBlock', label: 'Tags Block', description: 'U+E0041–E005A，AI 水印常用范围' },
-  { key: 'variationSelectors', label: '变体选择器', description: 'U+FE00–FE07，附着于普通字符' },
+const POISON_CATEGORIES: Array<{
+  key: keyof Omit<PoisonOptions, 'density'>
+  labelKey: I18nKey
+  descriptionKey: I18nKey
+}> = [
+  { key: 'zeroWidth', labelKey: 'text.carrier.zeroWidth', descriptionKey: 'text.poison.zeroWidthDesc' },
+  { key: 'homoglyphs', labelKey: 'text.poison.homoglyphs', descriptionKey: 'text.poison.homoglyphsDesc' },
+  { key: 'bidiControl', labelKey: 'text.poison.bidiControl', descriptionKey: 'text.poison.bidiControlDesc' },
+  { key: 'specialSpace', labelKey: 'text.carrier.specialSpace', descriptionKey: 'text.poison.specialSpaceDesc' },
+  { key: 'tagsBlock', labelKey: 'text.poison.tagsBlock', descriptionKey: 'text.poison.tagsBlockDesc' },
+  { key: 'variationSelectors', labelKey: 'text.poison.variationSelectors', descriptionKey: 'text.poison.variationSelectorsDesc' },
 ]
 
 function PoisonPanel() {
+  const { t } = useI18n()
   const [inputText, setInputText] = useState('')
   const [density, setDensity] = useState<PoisonDensity>('medium')
   const [selected, setSelected] = useState<Partial<Record<keyof Omit<PoisonOptions, 'density'>, boolean>>>({
@@ -486,20 +503,18 @@ function PoisonPanel() {
     <div className="flex flex-col gap-4 h-full">
       <div className="grid grid-cols-2 gap-4 flex-1 min-h-0">
         <TextArea
-          label="原始文本"
+          label={t('text.source')}
           value={inputText}
           onChange={setInputText}
-          placeholder="粘贴要投毒的文本…"
+          placeholder={t('text.sourcePoisonPlaceholder')}
           rows={10}
         />
         <div className="flex flex-col gap-4">
           {/* Category toggles */}
           <div>
-            <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest block mb-2">
-              注入字符类型
-            </span>
+            <span className="text-sm font-semibold text-zinc-200 block mb-2">{t('text.poisonTypes')}</span>
             <div className="flex flex-col gap-1">
-              {POISON_CATEGORIES.map(({ key, label, description }) => (
+              {POISON_CATEGORIES.map(({ key, labelKey, descriptionKey }) => (
                 <label
                   key={key}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-white/[0.04] cursor-pointer transition-colors group"
@@ -515,8 +530,8 @@ function PoisonPanel() {
                     {selected[key] && <Check size={10} weight="bold" className="text-white" />}
                   </div>
                   <div>
-                    <span className="text-xs text-white">{label}</span>
-                    <span className="text-[10px] text-zinc-600 ml-1.5">{description}</span>
+                    <span className="text-xs text-white">{t(labelKey)}</span>
+                    <span className="text-[10px] text-zinc-400 ml-1.5">{t(descriptionKey)}</span>
                   </div>
                 </label>
               ))}
@@ -525,9 +540,7 @@ function PoisonPanel() {
 
           {/* Density selector */}
           <div>
-            <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest block mb-2">
-              注入密度
-            </span>
+            <span className="text-sm font-semibold text-zinc-200 block mb-2">{t('text.poisonDensity')}</span>
             <div className="flex gap-2">
               {(['low', 'medium', 'high'] as PoisonDensity[]).map((d) => (
                 <button
@@ -539,7 +552,7 @@ function PoisonPanel() {
                       : 'bg-transparent border-white/[0.06] text-zinc-600 hover:text-zinc-200'
                   }`}
                 >
-                  {d === 'low' ? '低' : d === 'medium' ? '中' : '高'}
+                  {d === 'low' ? t('text.low') : d === 'medium' ? t('text.medium') : t('text.high')}
                 </button>
               ))}
             </div>
@@ -550,8 +563,8 @@ function PoisonPanel() {
             disabled={!inputText.trim() || !Object.values(selected).some(Boolean)}
             loading={poisonStatus === 'working'}
             icon={<Bug size={15} weight="regular" />}
-            label="开始投毒"
-            loadingLabel="投毒中…"
+            label={t('text.poison')}
+            loadingLabel={t('text.poisoning')}
             color="amber"
           />
           {poisonError && <StatusBadge ok={false} message={poisonError} />}
@@ -567,7 +580,7 @@ function PoisonPanel() {
             className="flex flex-col gap-1.5"
           >
             <TextArea
-              label={`投毒结果（注入 ${poisonResult.injectedCount} 个字符）`}
+              label={t('text.poisonResult', { count: poisonResult.injectedCount })}
               value={poisonResult.poisoned}
               readOnly
               rows={6}
@@ -607,10 +620,10 @@ type TopTab = 'embed' | 'img-embed' | 'decode'
 type EmbedSubTab = 'char-embed' | 'poison'
 type DecodeSubTab = 'char-decode' | 'img-decode'
 
-const TOP_TABS: Array<{ id: TopTab; label: string; icon: React.ReactNode }> = [
-  { id: 'embed',     label: '嵌入水印',   icon: <Fingerprint size={13} weight="regular" /> },
-  { id: 'img-embed', label: '图片水印嵌入', icon: <ImageSquare size={13} weight="regular" /> },
-  { id: 'decode',    label: '解密水印',   icon: <LockOpen size={13} weight="regular" /> },
+const TOP_TABS: Array<{ id: TopTab; labelKey: I18nKey; icon: React.ReactNode }> = [
+  { id: 'embed', labelKey: 'wm.top.embed', icon: <Fingerprint size={13} weight="regular" /> },
+  { id: 'img-embed', labelKey: 'wm.top.imageEmbed', icon: <ImageSquare size={13} weight="regular" /> },
+  { id: 'decode', labelKey: 'wm.top.decode', icon: <LockOpen size={13} weight="regular" /> },
 ]
 
 function SubTabBar<T extends string>({
@@ -618,19 +631,20 @@ function SubTabBar<T extends string>({
   active,
   onChange,
 }: {
-  tabs: Array<{ id: T; label: string; icon: React.ReactNode }>
+  tabs: Array<{ id: T; labelKey: I18nKey; icon: React.ReactNode }>
   active: T
   onChange: (id: T) => void
 }) {
+  const { t } = useI18n()
   return (
     <div className="flex items-center gap-1 px-5 pt-3 pb-2 border-b border-white/[0.04] flex-shrink-0">
       <div className="flex items-center gap-0.5 bg-white/[0.03] rounded-lg p-0.5 border border-white/[0.05]">
-        {tabs.map(({ id, label, icon }) => (
+        {tabs.map(({ id, labelKey, icon }) => (
           <button
             key={id}
             onClick={() => onChange(id)}
             className={`
-              flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-md
+              flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md
               transition-all duration-200 cursor-pointer no-drag
               ${active === id
                 ? 'bg-white/[0.07] text-zinc-200 shadow-sm'
@@ -639,7 +653,7 @@ function SubTabBar<T extends string>({
             `}
           >
             {icon}
-            {label}
+            {t(labelKey)}
           </button>
         ))}
       </div>
@@ -648,6 +662,7 @@ function SubTabBar<T extends string>({
 }
 
 export default function WatermarkTab() {
+  const { t } = useI18n()
   const [topTab, setTopTab] = useState<TopTab>('embed')
   const [embedSub, setEmbedSub] = useState<EmbedSubTab>('char-embed')
   const [decodeSub, setDecodeSub] = useState<DecodeSubTab>('char-decode')
@@ -657,7 +672,7 @@ export default function WatermarkTab() {
       {/* Top tab bar */}
       <div className="flex items-center gap-1 px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
         <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5">
-          {TOP_TABS.map(({ id, label, icon }) => (
+          {TOP_TABS.map(({ id, labelKey, icon }) => (
             <button
               key={id}
               onClick={() => setTopTab(id)}
@@ -671,16 +686,12 @@ export default function WatermarkTab() {
               `}
             >
               {icon}
-              {label}
+              {t(labelKey)}
             </button>
           ))}
         </div>
         <div className="ml-auto flex items-center gap-1.5 text-[10px] text-zinc-700">
-          {topTab === 'img-embed' ? (
-            <>Block-DCT · QIM · Reed-Solomon</>
-          ) : (
-            <><Shuffle size={11} weight="regular" />AES-256-GCM · HKDF · 散射嵌入</>
-          )}
+          {topTab === 'img-embed' ? t('wm.tech.image') : <><Shuffle size={11} weight="regular" />{t('wm.tech.text')}</>}
         </div>
       </div>
 
@@ -694,8 +705,8 @@ export default function WatermarkTab() {
         <>
           <SubTabBar
             tabs={[
-              { id: 'char-embed' as EmbedSubTab, label: '加密字符水印', icon: <Fingerprint size={12} weight="regular" /> },
-              { id: 'poison'    as EmbedSubTab, label: '随机投毒',     icon: <Bug size={12} weight="regular" /> },
+              { id: 'char-embed' as EmbedSubTab, labelKey: 'wm.sub.charEmbed', icon: <Fingerprint size={12} weight="regular" /> },
+              { id: 'poison' as EmbedSubTab, labelKey: 'wm.sub.poison', icon: <Bug size={12} weight="regular" /> },
             ]}
             active={embedSub}
             onChange={setEmbedSub}
@@ -722,8 +733,8 @@ export default function WatermarkTab() {
         <>
           <SubTabBar
             tabs={[
-              { id: 'char-decode' as DecodeSubTab, label: '解密字符', icon: <LockOpen size={12} weight="regular" /> },
-              { id: 'img-decode'  as DecodeSubTab, label: '解密图片', icon: <ScanSmiley size={12} weight="regular" /> },
+              { id: 'char-decode' as DecodeSubTab, labelKey: 'wm.sub.charDecode', icon: <LockOpen size={12} weight="regular" /> },
+              { id: 'img-decode' as DecodeSubTab, labelKey: 'wm.sub.imageDecode', icon: <ScanSmiley size={12} weight="regular" /> },
             ]}
             active={decodeSub}
             onChange={setDecodeSub}

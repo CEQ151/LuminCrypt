@@ -1,5 +1,6 @@
 ﻿import { ScanResult } from '../core/detector'
 import HighlightView from './HighlightView'
+import { useI18n } from '../i18n'
 
 interface CompareViewProps {
   originalText: string
@@ -8,14 +9,15 @@ interface CompareViewProps {
 }
 
 export default function CompareView({ originalText, cleanedText, result }: CompareViewProps) {
+  const { t } = useI18n()
   return (
     <div className="h-full grid grid-cols-2 gap-3">
       {/* Original with highlights */}
       <div className="flex flex-col min-h-0">
         <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-          <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">原文</span>
+          <span className="text-xs font-semibold text-zinc-300">{t('detect.original')}</span>
           <span className="text-[10px] text-zinc-700 font-mono tabular-nums">
-            {result.suspiciousCount} 处可疑
+            {t('detect.suspiciousCount', { count: result.suspiciousCount })}
           </span>
         </div>
         <div className="flex-1 min-h-0">
@@ -26,9 +28,9 @@ export default function CompareView({ originalText, cleanedText, result }: Compa
       {/* Cleaned text */}
       <div className="flex flex-col min-h-0">
         <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-          <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-widest">净化后</span>
+          <span className="text-xs font-semibold text-emerald-300">{t('detect.cleanAfter')}</span>
           <span className="text-[10px] text-zinc-700 font-mono tabular-nums">
-            已移除 {result.suspiciousCount} 处
+            {t('detect.removedCount', { count: result.suspiciousCount })}
           </span>
         </div>
         <textarea

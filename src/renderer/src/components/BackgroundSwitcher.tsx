@@ -1,6 +1,7 @@
 ﻿import { useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ImagesSquare, UploadSimple, Trash } from '@phosphor-icons/react'
+import { useI18n } from '../i18n'
 
 interface BackgroundSwitcherProps {
   open: boolean
@@ -15,6 +16,7 @@ export default function BackgroundSwitcher({
   onSelect,
   onClose,
 }: BackgroundSwitcherProps) {
+  const { t } = useI18n()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,7 +80,7 @@ export default function BackgroundSwitcher({
                     <ImagesSquare size={15} className="text-cyan-400" weight="duotone" />
                   </div>
                   <span className="text-sm font-semibold text-white/90">
-                    背景图片
+                    {t('background.title')}
                   </span>
                 </div>
                 <button
@@ -101,7 +103,7 @@ export default function BackgroundSwitcher({
                     />
                     <div className="absolute inset-0 bg-black/20" />
                     <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center">
-                      <span className="text-[10px] text-white/60">当前自定义背景</span>
+                      <span className="text-[10px] text-white/60">{t('background.currentCustom')}</span>
                     </div>
                   </div>
                 ) : (
@@ -110,7 +112,7 @@ export default function BackgroundSwitcher({
                     style={{ aspectRatio: '16/9', background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.08)' }}
                   >
                     <ImagesSquare size={24} weight="duotone" />
-                    <span className="text-[11px]">当前：动态宇宙背景</span>
+                    <span className="text-[11px]">{t('background.currentCosmic')}</span>
                   </div>
                 )}
 
@@ -133,7 +135,7 @@ export default function BackgroundSwitcher({
                   "
                 >
                   <UploadSimple size={14} weight="bold" />
-                  上传背景图片
+                  {t('background.upload')}
                 </button>
 
                 {/* Remove button (only when custom bg is set) */}
@@ -149,12 +151,12 @@ export default function BackgroundSwitcher({
                     "
                   >
                     <Trash size={13} weight="regular" />
-                    恢复动态背景
+                    {t('background.restore')}
                   </button>
                 )}
 
                 <p className="text-[10px] text-zinc-700 text-center">
-                  支持 PNG · JPG · WebP · GIF
+                  {t('background.supports')}
                 </p>
               </div>
             </div>

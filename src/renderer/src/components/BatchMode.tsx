@@ -16,10 +16,12 @@ import {
 } from '@phosphor-icons/react'
 import { BatchItem, useBatch } from '../hooks/useBatch'
 import StatsPanel from './StatsPanel'
+import { useI18n } from '../i18n'
 
 type BatchHook = ReturnType<typeof useBatch>
 
 export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
+  const { t } = useI18n()
   const {
     items,
     scanning,
@@ -77,9 +79,9 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] flex-shrink-0">
         <div>
           <h1 className="text-base text-white leading-none font-display tracking-[0.02em]">
-            批量检测
+            {t('batch.title')}
           </h1>
-          <p className="text-xs text-zinc-300 mt-1">同时检测多个文件或多段文本</p>
+          <p className="text-xs text-zinc-300 mt-1">{t('batch.subtitle')}</p>
         </div>
 
         {items.length > 0 && (
@@ -87,10 +89,10 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
             {doneCount > 0 && (
               <div className="flex items-center gap-3 px-3 py-1.5 bg-white/[0.04] rounded-lg border border-white/[0.07]">
                 <span className="text-xs text-zinc-200">
-                  <span className="text-white font-mono font-semibold">{doneCount}</span>/{items.length} 已扫描
+                  {t('batch.scanned', { done: doneCount, total: items.length })}
                 </span>
                 <span className="text-xs text-zinc-200">
-                  平均风险{' '}
+                  {t('batch.avgRisk')}{' '}
                   <span
                     className="font-mono font-semibold"
                     style={{
@@ -108,7 +110,7 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
                 className="flex items-center gap-1.5 text-xs text-white hover:text-white bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.07] px-3 py-1.5 rounded-lg transition-all cursor-pointer no-drag"
               >
                 <Broom size={13} weight="regular" />
-                全部清理
+                {t('batch.cleanAll')}
               </button>
             )}
             {/* Scan selected / scan all */}
@@ -119,7 +121,7 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
                 className="flex items-center gap-1.5 text-xs text-white bg-[#3b7cd4] hover:bg-[#4d8de0] disabled:opacity-40 disabled:cursor-not-allowed px-3 py-1.5 rounded-lg transition-all cursor-pointer no-drag font-medium"
               >
                 <Play size={13} weight="fill" />
-                {scanning ? '扫描中…' : `扫描已选 (${selectedCount})`}
+                {scanning ? t('common.scanning') : t('batch.scanSelected', { count: selectedCount })}
               </button>
             ) : (
               <button
@@ -128,7 +130,7 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
                 className="flex items-center gap-1.5 text-xs text-white bg-[#3b7cd4] hover:bg-[#4d8de0] disabled:opacity-40 disabled:cursor-not-allowed px-3 py-1.5 rounded-lg transition-all cursor-pointer no-drag font-medium"
               >
                 <Play size={13} weight="fill" />
-                {scanning ? '扫描中…' : '扫描全部'}
+                {scanning ? t('common.scanning') : t('batch.scanAll')}
               </button>
             )}
             <button
@@ -136,7 +138,7 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
               className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-red-400 transition-colors cursor-pointer no-drag"
             >
               <Trash size={13} weight="regular" />
-              清空
+              {t('common.clear')}
             </button>
           </div>
         )}
@@ -148,8 +150,8 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
           {/* Mode toggle */}
           <div className="flex items-center gap-1 bg-white/[0.04] rounded-lg p-0.5">
             {([
-              { id: 'file' as const, label: '文件', icon: <FileText size={12} /> },
-              { id: 'text' as const, label: '文本', icon: <TextT size={12} /> },
+              { id: 'file' as const, label: t('batch.file'), icon: <FileText size={12} /> },
+              { id: 'text' as const, label: t('batch.text'), icon: <TextT size={12} /> },
             ]).map(({ id, label, icon }) => (
               <button
                 key={id}
@@ -183,8 +185,8 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
                 <UploadSimple size={22} weight="regular" className="text-zinc-200" />
               </div>
               <div className="text-center">
-                <p className="text-sm text-white font-medium">拖入多个文件</p>
-                <p className="text-xs text-zinc-300 mt-1">点击或拖放 · .txt .md .docx .pdf</p>
+                <p className="text-sm text-white font-medium">{t('batch.dropFiles')}</p>
+                <p className="text-xs text-zinc-300 mt-1">{t('batch.dropHint')}</p>
               </div>
               <input
                 ref={fileInputRef}
@@ -201,7 +203,7 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
               <textarea
                 value={segmentText}
                 onChange={(e) => setSegmentText(e.target.value)}
-                placeholder={`粘贴多段文本，用\n---\n分隔各段`}
+                placeholder={t('batch.segmentPlaceholder')}
                 className="flex-1 bg-white/[0.03] rounded-xl border border-white/[0.07] text-sm text-zinc-200 leading-relaxed font-['Geist_Mono',monospace] resize-none px-4 py-3 focus:outline-none focus:border-[#3b7cd4]/40 placeholder:text-zinc-600"
                 spellCheck={false}
               />
@@ -210,7 +212,7 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
                 disabled={!segmentText.trim()}
                 className="flex items-center justify-center gap-1.5 text-xs text-zinc-200 bg-white/[0.06] hover:bg-white/[0.09] disabled:opacity-40 disabled:cursor-not-allowed border border-white/[0.08] px-3 py-2 rounded-lg transition-all cursor-pointer no-drag"
               >
-                添加文本段落
+                {t('batch.addSegments')}
               </button>
             </div>
           )}
@@ -223,7 +225,7 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
               <div className="w-16 h-16 rounded-2xl border border-white/[0.07] bg-white/[0.02] flex items-center justify-center">
                 <UploadSimple size={28} weight="regular" className="text-zinc-600" />
               </div>
-              <p className="text-sm text-zinc-200">拖入文件或粘贴文本段落开始批量检测</p>
+              <p className="text-sm text-zinc-200">{t('batch.empty')}</p>
             </div>
           ) : (
             <div className="p-5 flex flex-col gap-2">
@@ -240,10 +242,10 @@ export default function BatchMode({ batchHook }: { batchHook: BatchHook }) {
                   ) : (
                     <Square size={15} weight="regular" className="text-zinc-600" />
                   )}
-                  {allSelected ? '取消全选' : '全选'}
+                  {allSelected ? t('batch.unselectAll') : t('batch.selectAll')}
                 </button>
                 {selectedCount > 0 && (
-                  <span className="text-xs text-zinc-300">已选 {selectedCount} 项</span>
+                  <span className="text-xs text-zinc-300">{t('batch.selected', { count: selectedCount })}</span>
                 )}
               </div>
 
@@ -283,10 +285,18 @@ function BatchItemCard({
   onRemove: () => void
   onSelect: () => void
 }) {
+  const { t } = useI18n()
   const score = item.result?.riskScore ?? 0
   const scoreColor = score < 30 ? '#10b981' : score < 65 ? '#f59e0b' : '#ef4444'
-  const riskLabel = score < 30 ? '低风险' : score < 65 ? '中等' : '高风险'
-  const actionLabel = score === 0 ? '无异常' : score < 30 ? '可忽略' : score < 65 ? '建议清理' : '建议重写'
+  const riskLabel = score < 30 ? t('stats.low') : score < 65 ? t('stats.medium') : t('stats.high')
+  const actionLabel =
+    score === 0
+      ? t('risk.none')
+      : score < 30
+        ? t('stats.action.ignore')
+        : score < 65
+          ? t('stats.action.clean')
+          : t('stats.action.rewrite')
 
   return (
     <motion.div
@@ -340,7 +350,10 @@ function BatchItemCard({
           <p className="text-sm text-white truncate font-medium">{item.name}</p>
           {item.status === 'done' && item.result && (
             <p className="text-xs text-zinc-300 mt-0.5">
-              {item.result.totalChars.toLocaleString()} 字符 · 发现 {item.result.suspiciousCount} 处
+              {t('batch.itemSummary', {
+                chars: item.result.totalChars.toLocaleString(),
+                count: item.result.suspiciousCount,
+              })}
             </p>
           )}
           {item.status === 'error' && (
@@ -381,7 +394,7 @@ function BatchItemCard({
             <button
               onClick={(e) => { e.stopPropagation(); onClean() }}
               className="p-1.5 text-zinc-300 hover:text-zinc-200 hover:bg-white/[0.06] rounded transition-colors cursor-pointer"
-              title="清理"
+              title={t('common.clean')}
             >
               <Broom size={13} weight="regular" />
             </button>
@@ -389,7 +402,7 @@ function BatchItemCard({
           <button
             onClick={(e) => { e.stopPropagation(); onRemove() }}
             className="p-1.5 text-zinc-300 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
-            title="移除"
+            title={t('common.remove')}
           >
             <X size={13} weight="regular" />
           </button>
@@ -410,7 +423,7 @@ function BatchItemCard({
               <StatsPanel result={item.result} />
               {item.cleanedText && (
                 <div className="mt-4">
-                  <p className="text-xs text-zinc-200 mb-2 uppercase tracking-wider">净化结果</p>
+                  <p className="text-xs text-zinc-200 mb-2 uppercase tracking-wider">{t('batch.cleanResult')}</p>
                   <textarea
                     value={item.cleanedText}
                     readOnly

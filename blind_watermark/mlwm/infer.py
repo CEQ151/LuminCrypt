@@ -146,6 +146,7 @@ def neural_decode_views(
   *,
   models_dir: str | None = None,
   use_cuda: bool = False,
+  password: int | None = None,
 ) -> dict[str, Any]:
   status = probe_runtime(models_dir)
   if not status.ready:
@@ -167,7 +168,7 @@ def neural_decode_views(
     weighted_logits += logits * confidence
     total_weight += confidence
     try:
-      decoded = decode_payload_logits(logits)
+      decoded = decode_payload_logits(logits, password=password)
       decoded['confidence'] = confidence
       decoded['attemptIndex'] = index
       decoded['strategy'] = 'single-view'
@@ -180,7 +181,7 @@ def neural_decode_views(
     raise NeuralRuntimeUnavailable('decoder produced no usable confidence scores')
 
   aggregated_logits = weighted_logits / total_weight
-  decoded = decode_payload_logits(aggregated_logits)
+  decoded = decode_payload_logits(aggregated_logits, password=password)
   decoded['confidence'] = float(total_weight / max(len(views_rgb), 1))
   decoded['attempts'] = [{'index': a['index'], 'confidence': a['confidence']} for a in attempts]
   decoded['strategy'] = 'weighted-aggregate'

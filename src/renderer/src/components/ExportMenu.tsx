@@ -4,6 +4,7 @@ import { Export, FilePdf, FileJs, FileCsv, CaretDown } from '@phosphor-icons/rea
 import { ScanResult } from '../core/detector'
 import { CATEGORY_META } from '../core/categories'
 import { generateCSV } from '../core/csvExport'
+import { useI18n } from '../i18n'
 
 interface ExportMenuProps {
   result: ScanResult
@@ -11,6 +12,7 @@ interface ExportMenuProps {
 }
 
 export default function ExportMenu({ result }: ExportMenuProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
 
@@ -94,7 +96,7 @@ export default function ExportMenu({ result }: ExportMenuProps) {
         "
       >
         <Export size={13} />
-        <span>{exporting ? '导出中\u2026' : '导出'}</span>
+        <span>{exporting ? t('export.exporting') : t('export.button')}</span>
         <CaretDown size={10} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -112,11 +114,11 @@ export default function ExportMenu({ result }: ExportMenuProps) {
                 w-52 overflow-hidden desktop-menu
               "
             >
-              <MenuItem icon={<FileJs size={14} className="text-emerald-400" />} onClick={exportJSON} label="导出 JSON" sub="完整结构化报告" />
+              <MenuItem icon={<FileJs size={14} className="text-emerald-400" />} onClick={exportJSON} label={t('export.json')} sub={t('export.jsonSub')} />
               <div className="h-px bg-white/[0.05]" />
-              <MenuItem icon={<FileCsv size={14} className="text-sky-400" />} onClick={exportCSV} label="导出 CSV" sub="可在 Excel 中打开" />
+              <MenuItem icon={<FileCsv size={14} className="text-sky-400" />} onClick={exportCSV} label={t('export.csv')} sub={t('export.csvSub')} />
               <div className="h-px bg-white/[0.05]" />
-              <MenuItem icon={<FilePdf size={14} className="text-red-400" />} onClick={exportPDF} label="导出 PDF" sub="格式化扫描报告" />
+              <MenuItem icon={<FilePdf size={14} className="text-red-400" />} onClick={exportPDF} label={t('export.pdf')} sub={t('export.pdfSub')} />
             </motion.div>
           </>
         )}

@@ -19,6 +19,7 @@ import { useClipboard } from './hooks/useClipboard'
 import { useSettings } from './contexts/SettingsContext'
 import { useBatch } from './hooks/useBatch'
 import { cleanAll } from './core/cleaner'
+import { useI18n } from './i18n'
 
 const CompareView = lazy(() => import('./components/CompareView'))
 const SettingsPage = lazy(() => import('./components/SettingsPage'))
@@ -30,6 +31,7 @@ function App(): React.JSX.Element {
   const [cleaned, setCleaned] = useState<string | null>(null)
   const [bgImageUrl, setBgImageUrl] = useState<string | null>(null)
   const [showBgPanel, setShowBgPanel] = useState(false)
+  const { t } = useI18n()
 
   const { settings, updateSettings } = useSettings()
   const batchHook = useBatch()
@@ -152,7 +154,7 @@ function App(): React.JSX.Element {
                           className="cosmic-btn flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl cursor-pointer no-drag"
                         >
                           <Broom size={13} weight="regular" />
-                          清理
+                          {t('common.clean')}
                         </motion.button>
                       )}
                     </div>
@@ -164,7 +166,7 @@ function App(): React.JSX.Element {
                         className="flex items-center gap-1.5 text-xs text-zinc-600 hover:text-cyan-300 transition-colors duration-300 cursor-pointer no-drag"
                       >
                         <ArrowCounterClockwise size={12} weight="regular" />
-                        重置
+                        {t('common.reset')}
                       </motion.button>
                     )}
                   </div>
@@ -210,11 +212,9 @@ function App(): React.JSX.Element {
                         </div>
                         <div className="text-center">
                           <p className="text-sm font-medium text-white">
-                            粘贴文本，按{' '}
-                            <kbd className="font-mono text-[11px] bg-white/[0.07] border border-white/[0.1] px-1.5 py-0.5 rounded-md text-cyan-300/80">Ctrl+↵</kbd>
-                            {' '}开始扫描
+                            {t('detect.empty', { shortcut: 'Ctrl+Enter' })}
                           </p>
-                          <p className="text-xs text-zinc-600 mt-2 tracking-wide">检测零宽字符、同形字、BiDi 控制码、Tags 区块等</p>
+                          <p className="text-xs text-zinc-400 mt-2 tracking-wide">{t('detect.emptyHint')}</p>
                         </div>
                       </motion.div>
                     )}
@@ -236,7 +236,7 @@ function App(): React.JSX.Element {
                           <div className="absolute inset-5 rounded-full bg-cyan-400/10 animate-pulse" />
                         </div>
                         <div className="flex flex-col items-center gap-1">
-                          <p className="text-sm text-cyan-300/70 font-medium tracking-wide">正在分析字符</p>
+                          <p className="text-sm text-cyan-300/70 font-medium tracking-wide">{t('detect.analyzing')}</p>
                           <p className="text-xs text-zinc-600 font-mono">SCANNING UNICODE STREAM...</p>
                         </div>
                       </motion.div>
@@ -254,8 +254,8 @@ function App(): React.JSX.Element {
                           <WarningCircle size={24} weight="regular" className="text-red-400" />
                         </div>
                         <div className="flex flex-col items-center gap-1 text-center">
-                          <p className="text-sm text-red-400 font-medium">扫描失败</p>
-                          <p className="text-xs text-zinc-500 max-w-xs">{errorMessage || '未知错误，请重试'}</p>
+                          <p className="text-sm text-red-400 font-medium">{t('detect.error')}</p>
+                          <p className="text-xs text-zinc-500 max-w-xs">{errorMessage || t('detect.unknownError')}</p>
                         </div>
                         <motion.button
                           whileTap={{ scale: 0.97 }}
@@ -263,7 +263,7 @@ function App(): React.JSX.Element {
                           className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-cyan-300 transition-colors cursor-pointer no-drag mt-2"
                         >
                           <ArrowCounterClockwise size={12} weight="regular" />
-                          重置
+                          {t('common.reset')}
                         </motion.button>
                       </motion.div>
                     )}
@@ -280,10 +280,10 @@ function App(): React.JSX.Element {
                         <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
                           <div className="flex items-center gap-1 bg-white/[0.03] rounded-xl p-0.5 border border-white/[0.06]">
                             {([
-                              { id: 'highlight' as const, label: '标注视图' },
+                              { id: 'highlight' as const, label: t('detect.highlight') },
                               ...(cleaned ? [
-                                { id: 'cleaned' as const, label: '净化文本' },
-                                { id: 'compare' as const, label: '对比' },
+                                { id: 'cleaned' as const, label: t('detect.cleaned') },
+                                { id: 'compare' as const, label: t('detect.compare') },
                               ] : []),
                             ]).map(({ id, label }) => (
                               <button
@@ -296,7 +296,9 @@ function App(): React.JSX.Element {
                             ))}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono text-zinc-600 tabular-nums">发现 {result.suspiciousCount} 处</span>
+                            <span className="text-xs font-mono text-zinc-400 tabular-nums">
+                              {t('detect.found', { count: result.suspiciousCount })}
+                            </span>
                             <ExportMenu result={result} originalText={text} />
                           </div>
                         </div>

@@ -82,17 +82,23 @@ TEMPLATE_RING_BANDS = [
 # v2 compat constants
 _V2_RS_NSYM = 20
 _V2_REDUNDANCY = 3
-RWM_VERSION = '3.1.0'
+RWM_VERSION = '3.2.0'
 NEURAL_MAX_TEXT_BYTES = 16
 NEURAL_PROFILES = {
-    'balanced': {
-        'residual_strength': 1.0,
+    'invisible': {
+        'residual_strength': 0.35,
         'template_strength': 0.0,
         'template_peaks': 0,
         'sync_enabled': False,
     },
-    'aggressive': {
-        'residual_strength': 1.35,
+    'balanced': {
+        'residual_strength': 0.55,
+        'template_strength': 0.0,
+        'template_peaks': 0,
+        'sync_enabled': False,
+    },
+    'robust': {
+        'residual_strength': 1.0,
         'template_strength': 0.0,
         'template_peaks': 0,
         'sync_enabled': False,
@@ -517,8 +523,8 @@ def extract_watermark_legacy(img, password=1, quality='balanced'):
 
 
 def _resolve_neural_profile(quality):
-    if quality == 'robust':
-        return 'aggressive'
+    if quality in NEURAL_PROFILES:
+        return quality
     return 'balanced'
 
 
@@ -600,7 +606,7 @@ def _neural_embed_impl(img, text, password=1, quality='balanced', models_dir=Non
     profile = NEURAL_PROFILES[profile_name]
     alpha = img[:, :, 3].copy() if img.ndim == 3 and img.shape[2] == 4 else None
     base = img[:, :, :3] if alpha is not None else img.copy()
-    payload = encode_text_payload(text)
+    payload = encode_text_payload(text, password=password)
     rgb = cv2.cvtColor(base, cv2.COLOR_BGR2RGB)
     try:
         encoded = neural_encode_residual(rgb, payload.bits, models_dir=models_dir, use_cuda=False)
@@ -622,6 +628,9 @@ def _neural_embed_impl(img, text, password=1, quality='balanced', models_dir=Non
 
     diagnostics = {
         'profile': profile_name,
+        'protocol': payload.protocol,
+        'passwordProtected': payload.password_protected,
+        'visualStrength': profile['residual_strength'],
         'payloadBytes': len(payload.text_bytes),
         'modelVersion': encoded.get('modelVersion'),
         'modelsDir': models_dir,
@@ -658,7 +667,7 @@ def _neural_extract_impl(img, password=1, quality='balanced', models_dir=None):
         geo = {'angle': 0.0, 'scale': 1.0, 'confidence': 0.0, 'peaks': 0, 'syncEnabled': False}
     views = _build_neural_views(corrected)
     try:
-        decoded = neural_decode_views(views, models_dir=models_dir, use_cuda=False)
+        decoded = neural_decode_views(views, models_dir=models_dir, use_cuda=False, password=password)
     except NeuralRuntimeUnavailable:
         raise
 
@@ -671,6 +680,9 @@ def _neural_extract_impl(img, password=1, quality='balanced', models_dir=None):
         'confidence': confidence,
         'diagnostics': {
             'profile': profile_name,
+            'protocol': decoded.get('protocol', 'keyed-v2'),
+            'passwordProtected': bool(decoded.get('passwordProtected', True)),
+            'visualStrength': profile['residual_strength'],
             'bitConfidence': float(decoded.get('bitConfidence', 0.0)),
             'decodeStrategy': decoded.get('strategy'),
             'geometricCorrection': geo,
