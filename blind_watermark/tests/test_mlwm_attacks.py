@@ -4,7 +4,6 @@ import unittest
 import numpy as np
 
 from blind_watermark.mlwm.attacks import AttackConfig, apply_random_attack_chain
-from blind_watermark.mlwm.train import attack_batch
 
 try:
   import torch
@@ -28,6 +27,11 @@ class AttackTests(unittest.TestCase):
 
   @unittest.skipIf(torch is None, 'PyTorch is not installed')
   def test_attack_batch_uses_straight_through_gradient(self):
+    try:
+      from blind_watermark.mlwm.train import attack_batch
+    except ImportError as exc:
+      self.skipTest(f'ML training dependencies are not installed: {exc}')
+
     image = torch.rand(1, 3, 40, 40, requires_grad=True)
     out = attack_batch(torch, image, AttackConfig(ops_per_sample_min=1, ops_per_sample_max=1), 'medium')
     self.assertTrue(out.requires_grad)
