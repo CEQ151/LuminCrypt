@@ -3,7 +3,8 @@ import { ElectronAPI } from '@electron-toolkit/preload'
 type SaveResult = { success: boolean; filePath?: string; error?: string }
 type RunnerMode = 'exe' | 'python'
 type WatermarkEngine = 'auto' | 'legacy' | 'neural'
-type WatermarkQuality = 'invisible' | 'balanced' | 'robust'
+type WatermarkQuality = 'trace' | 'faint' | 'light' | 'invisible' | 'balanced' | 'strong' | 'robust'
+type ImagePayloadMode = 'fingerprint64' | 'text16'
 
 type ImageWmCheckResult = {
   ok: boolean
@@ -23,20 +24,62 @@ type ImageWmEmbedResult = {
   output?: string
   quality?: string
   error?: string
+  failureCode?: string
+  userMessage?: string
+  recoveryHints?: string[]
+  warningCode?: string
+  warnings?: string[]
   engineUsed?: WatermarkEngine | 'legacy'
   fallbackUsed?: boolean
   confidence?: number
   diagnostics?: Record<string, unknown>
+  payloadMode?: ImagePayloadMode
+  fingerprint?: string
+  codec?: string
+  berEstimate?: number
+  spreadConfidence?: number
 }
 
 type ImageWmExtractResult = {
   ok: boolean
   wm?: string
   error?: string
+  failureCode?: string
+  userMessage?: string
+  recoveryHints?: string[]
   engineUsed?: WatermarkEngine | 'legacy'
   fallbackUsed?: boolean
   confidence?: number
   diagnostics?: Record<string, unknown>
+  payloadMode?: ImagePayloadMode
+  fingerprint?: string
+  codec?: string
+  berEstimate?: number
+  spreadConfidence?: number
+}
+
+type ImageWmBatchResult = {
+  ok: boolean
+  batchId?: string
+  total?: number
+  successCount?: number
+  failureCount?: number
+  failureCode?: string | null
+  error?: string
+  results?: ImageWmEmbedResult[]
+}
+
+type ImageWmBatchProgress = {
+  event?: 'progress' | 'complete'
+  batchId: string
+  index?: number
+  total?: number
+  input?: string
+  output?: string
+  status?: 'running' | 'done' | 'failed'
+  progress?: number
+  failureCode?: string
+  error?: string
 }
 
 interface AppAPI {
@@ -51,8 +94,12 @@ interface AppAPI {
   storeSet: (key: string, value: unknown) => Promise<void>
   storeGetAll: () => Promise<Record<string, unknown>>
   imageWmCheckPython: () => Promise<ImageWmCheckResult>
+  imageWmBackendStatus: () => Promise<ImageWmCheckResult>
+  imageWmWarmup: () => Promise<ImageWmCheckResult>
   imageWmOpenImage: () => Promise<string | null>
+  imageWmOpenImages: () => Promise<string[]>
   imageWmSaveImage: () => Promise<string | null>
+  imageWmChooseOutputDir: () => Promise<string | null>
   imageWmEmbed: (opts: {
     inputPath: string
     outputPath: string
@@ -60,13 +107,27 @@ interface AppAPI {
     password: number
     quality: WatermarkQuality
     engine: WatermarkEngine
+    payloadMode?: ImagePayloadMode
   }) => Promise<ImageWmEmbedResult>
   imageWmExtract: (opts: {
     inputPath: string
     password: number
     quality: WatermarkQuality
     engine: WatermarkEngine
+    payloadMode?: ImagePayloadMode
   }) => Promise<ImageWmExtractResult>
+  imageWmEmbedBatch: (opts: {
+    inputPaths: string[]
+    outputDir: string
+    wmText: string
+    password: number
+    quality: WatermarkQuality
+    engine: WatermarkEngine
+    payloadMode?: ImagePayloadMode
+    selfCheckMode?: 'sampled' | 'all' | 'off'
+  }) => Promise<ImageWmBatchResult>
+  imageWmCancelBatch: (batchId: string) => Promise<boolean>
+  onImageWmBatchProgress: (callback: (payload: ImageWmBatchProgress) => void) => () => void
 }
 
 declare global {

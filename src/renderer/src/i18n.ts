@@ -5,6 +5,17 @@ export type UiLanguage = 'zh-CN' | 'en'
 export type LanguageSetting = 'system' | UiLanguage
 
 const zh = {
+  'img.payloadMode': 'Payload mode',
+  'img.payload.fingerprint': 'Short fingerprint',
+  'img.payload.fingerprintDesc': 'Default invisible mode; extracts fp:16hex.',
+  'img.payload.text16': 'Text16 compat',
+  'img.payload.text16Desc': 'Legacy short text recovery, 16 UTF-8 bytes max.',
+  'diag.payloadMode': 'Payload mode',
+  'diag.fingerprint': 'Fingerprint',
+  'diag.berEstimate': 'BER estimate',
+  'diagHelp.payloadMode': 'Whether the image stores a short fingerprint or a recoverable 16-byte text payload.',
+  'diagHelp.fingerprint': 'The recovered or embedded 64-bit keyed fingerprint.',
+  'diagHelp.berEstimate': 'Soft estimate of bit error likelihood from decoder probabilities.',
   'nav.detect': '检测',
   'nav.batch': '批量',
   'nav.watermark': '水印',
@@ -125,7 +136,8 @@ const zh = {
   'settings.threshold.midHigh': '中 / 高 分界',
   'settings.threshold.low': '低风险',
   'settings.threshold.mid': '中风险',
-  'settings.threshold.summary': '当前阈值：0-{low} 低风险 · {lowPlus}- {mid} 中等风险 · {midPlus}-100 高风险',
+  'settings.threshold.summary':
+    '当前阈值：0-{low} 低风险 · {lowPlus}- {mid} 中等风险 · {midPlus}-100 高风险',
   'settings.clipboard.title': '剪贴板监听',
   'settings.clipboard.subtitle': '自动检测剪贴板变化并提示扫描',
   'settings.clipboard.enable': '启用监听',
@@ -159,14 +171,27 @@ const zh = {
   'img.engine.legacyDesc': 'DCT + RS 旧引擎，适合长文本和历史兼容。',
   'img.engine.neuralDesc': '短载荷神经水印，抗社交平台降质更强。',
   'img.quality': '画质 / 强度',
+  'img.strength': '嵌入强度',
+  'img.quality.trace': '极轻',
+  'img.quality.faint': '微痕',
+  'img.quality.light': '轻痕',
   'img.quality.invisible': '轻痕',
   'img.quality.balanced': '均衡',
+  'img.quality.strong': '增强',
   'img.quality.robust': '强鲁棒',
+  'img.quality.traceDesc': '风险自担',
+  'img.quality.faintDesc': '近乎不可见',
+  'img.quality.lightDesc': '画质优先',
   'img.quality.invisibleDesc': '画质优先',
   'img.quality.balancedDesc': '推荐',
+  'img.quality.strongDesc': '平台优先',
   'img.quality.robustDesc': '传输优先',
-  'img.quality.invisibleHint': '最弱 neural 残差，适合轻度压缩或干净保存。',
-  'img.quality.balancedHint': '默认档：比 alpha1 中档更轻，同时通过本地 JPEG50/resize50 校准。',
+  'img.quality.traceHint': '最低强度频域扩频档，优先不可见；嵌入后必须通过本地自检。',
+  'img.quality.faintHint': '非常低强度频域扩频档，适合对观感极敏感的图片。',
+  'img.quality.lightHint': '低可见推荐档，使用 Y 通道 DCT 扩频，避免规则方块和粉红交叉印记。',
+  'img.quality.invisibleHint': '低可见推荐档，优先减弱粉红交叉印记。',
+  'img.quality.balancedHint': '默认档：频域扩频更强，仍优先隐藏图案；平台转发请用增强或强鲁棒。',
+  'img.quality.strongHint': '面向 QQ、微信等社交平台，增强 JPEG 转发后的可提取性。',
   'img.quality.robustHint': '社交平台传输优先，观感会更明显。',
   'img.backend.checking': '正在检查水印后端...',
   'img.backend.preparing': '准备检查后端...',
@@ -182,13 +207,18 @@ const zh = {
   'img.embed': '嵌入水印',
   'img.embedding': '嵌入中...',
   'img.embedOk': '图片水印嵌入成功。{engineInfo}',
+  'img.embedOkWithRisk': '图片水印已输出，但当前强度存在提取风险。{engineInfo}',
   'img.embedFail': '嵌入失败',
   'img.embedComplete': '嵌入完成',
   'img.extract': '提取水印',
   'img.extracting': '提取中...',
   'img.extractOk': '图片水印提取成功。',
   'img.extractFail': '提取失败',
-  'img.extractWarn': 'Auto 会先尝试 neural，再回退 legacy；比较模型迭代时建议明确选择引擎。',
+  'img.extractWarn': '提取通常只需要图片、密码和引擎；强度只在 Legacy 兼容场景中作为高级参数。',
+  'img.showAdvanced': '高级兼容参数',
+  'img.hideAdvanced': '收起高级参数',
+  'img.extractAdvancedHelp':
+    '普通 neural 提取不需要选择嵌入强度；这里主要用于旧版 Legacy 参数兼容。',
   'img.noWatermark': '未找到可提取水印。请确认选择了含水印图片，并且密码和引擎匹配。',
   'img.extracted': '提取出的水印',
   'img.engineResult': '引擎：{engine}',
@@ -197,6 +227,97 @@ const zh = {
   'img.confidence': '置信度 {value}%',
   'img.qualityResult': '质量档：{quality}',
   'img.diagnostics': '诊断信息',
+  'img.batchTitle': '批量嵌入',
+  'img.batchSubtitle': '多张图片使用同一水印、密码、引擎和嵌入强度。',
+  'img.batchImages': '批量图片',
+  'img.batchNoImages': '未选择图片',
+  'img.batchSelected': '已选择 {count} 张',
+  'img.batchMore': '还有 {count} 张',
+  'img.batchOutputDir': '输出文件夹',
+  'img.batchNoOutputDir': '未选择输出文件夹',
+  'img.selfCheck.sampled': '抽样校验',
+  'img.selfCheck.all': '全部校验',
+  'img.selfCheck.off': '不校验',
+  'img.batchStart': '开始批量嵌入',
+  'img.batchRunning': '批量处理中...',
+  'img.batchCancel': '取消批量',
+  'img.batchProgress': '批量进度',
+  'img.batchCurrent': '正在处理：{name}',
+  'img.batchSummary': '完成：成功 {success}，失败 {failed}，共 {total}',
+  'img.batchOk': '批量嵌入完成，成功 {count} 张。',
+  'img.batchFail': '批量嵌入失败',
+  'failure.invalidRequest': '请求参数不完整或不合法。',
+  'failure.inputUnreadable': '图片无法读取或写入。',
+  'failure.modelUnavailable': '水印后端或神经网络模型不可用。',
+  'failure.payloadTooLong': 'Neural 水印文本超过 16 UTF-8 bytes。',
+  'failure.noSignal': '没有检测到可确认的水印信号。',
+  'failure.wrongPasswordOrCorrupted': '检测到疑似水印信号，但校验没有通过。',
+  'failure.engineMismatch': '当前引擎无法解码这张图片。',
+  'failure.unsupportedProtocol': '当前版本不支持这张图里的水印协议。',
+  'failure.batchPartial': '批量任务部分图片失败。',
+  'failure.batchCancelled': '批量任务已取消。',
+  'failure.default': '操作失败，请检查图片、密码和引擎。',
+  'failureHints.invalidRequest':
+    '确认图片、输出路径、水印文本和密码都已填写。|如果是批量任务，确认所有路径仍然存在。',
+  'failureHints.inputUnreadable': '确认文件没有被移动或占用。|尝试换成 PNG 或 JPG 图片。',
+  'failureHints.modelUnavailable': '确认 helper 和 ONNX 模型已打包。|点击重试或重新启动应用。',
+  'failureHints.payloadTooLong': '缩短文本到 16 bytes 内。|长文本请使用 Auto 或 Legacy。',
+  'failureHints.noSignal': '确认这确实是含水印图片。|尝试 Auto 模式，或切换 Neural / Legacy。',
+  'failureHints.wrongPasswordOrCorrupted':
+    '优先确认密码是否正确。|如果密码正确，图片可能被过度压缩、裁剪或遮挡。',
+  'failureHints.engineMismatch': '尝试 Auto 模式。|在 Neural 和 Legacy 之间切换重试。',
+  'failureHints.unsupportedProtocol': '更新应用和 helper 后重试。',
+  'failureHints.batchPartial': '查看失败项，确认图片格式、路径和输出权限。',
+  'failureHints.batchCancelled': '任务已停止，已完成的图片会保留在输出文件夹。',
+  'failureHints.default':
+    '确认图片、密码和引擎是否匹配。|如果图片经过平台转发，尝试更强的嵌入档位。',
+  'diag.profile': '强度档位',
+  'diag.codec': '编码器',
+  'diag.protocol': '协议',
+  'diag.passwordProtected': '密码保护',
+  'diag.visualStrength': '视觉强度',
+  'diag.chromaScale': '色彩残差',
+  'diag.textureFloor': '纹理遮罩',
+  'diag.selfCheckRequired': '要求自检',
+  'diag.selfCheckPassed': '自检通过',
+  'diag.payloadBytes': '载荷字节',
+  'diag.modelVersion': '模型版本',
+  'diag.modelsDir': '模型目录',
+  'diag.fallbackReason': '回退原因',
+  'diag.bitConfidence': 'bit 置信度',
+  'diag.decodeStrategy': '解码策略',
+  'diag.geometricCorrection': '几何校正',
+  'diag.warnings': '风险提示',
+  'diag.spreadDelta': '扩频强度',
+  'diag.spreadReps': '扩频重复',
+  'diag.spreadMaskFloor': '遮罩下限',
+  'diag.spreadMaskGain': '遮罩增益',
+  'diag.spreadBlocks': '可用块数',
+  'diag.spreadConfidence': '扩频置信度',
+  'diagHelp.default': '用于排查问题的技术信息。',
+  'diagHelp.profile': '嵌入时选择的强度档位，越强越抗压缩但越可能可见。',
+  'diagHelp.codec': '实际使用的嵌入或解码方案。',
+  'diagHelp.protocol': '水印载荷的内部格式版本。',
+  'diagHelp.passwordProtected': '是否使用密码扰码保护载荷。',
+  'diagHelp.visualStrength': '神经残差叠加强度，数值越高水印越强。',
+  'diagHelp.chromaScale': '色彩通道扰动比例，越低越能减少粉红/紫色印记。',
+  'diagHelp.textureFloor': '平坦区域最低嵌入比例，越低越偏向把水印藏到纹理区域。',
+  'diagHelp.selfCheckRequired': '嵌入后是否必须立刻自提取成功才算完成。',
+  'diagHelp.selfCheckPassed': '嵌入后是否通过了本机自提取校验。',
+  'diagHelp.payloadBytes': '水印文本编码后的字节数。',
+  'diagHelp.modelVersion': '当前使用的 neural ONNX 模型版本。',
+  'diagHelp.modelsDir': '模型文件所在目录。',
+  'diagHelp.fallbackReason': 'Auto 模式从一个引擎切到另一个引擎的原因。',
+  'diagHelp.bitConfidence': '神经网络读取每个 bit 时的平均把握程度。',
+  'diagHelp.decodeStrategy': '单视图或多视图聚合的解码方式。',
+  'diagHelp.geometricCorrection': '旋转、缩放、裁剪等几何恢复信息。',
+  'diagHelp.warnings': '低强度或自检失败等需要注意的风险。',
+  'diagHelp.spreadDelta': 'DCT 系数对的最小差值目标，越高越稳但改动更大。',
+  'diagHelp.spreadReps': '每个 payload bit 分散到多少个随机 DCT 块。',
+  'diagHelp.spreadMaskFloor': '平坦区域保留的最低嵌入比例。',
+  'diagHelp.spreadMaskGain': '纹理和边缘区域额外提高嵌入强度的比例。',
+  'diagHelp.spreadBlocks': '当前图像可用于 8x8 DCT 扩频的块数量。',
+  'diagHelp.spreadConfidence': '扩频相关性投票的平均置信度。',
   'text.host': '宿主文本',
   'text.hostPlaceholder': '粘贴要嵌入水印的原文...',
   'text.message': '水印消息（明文）',
@@ -220,7 +341,8 @@ const zh = {
   'text.sourcePoisonPlaceholder': '粘贴要投毒的文本...',
   'text.watermarked': '含水印文本',
   'text.watermarkedResult': '含水印文本（可直接复制使用）',
-  'text.watermarkedHint': '共 {bits} bits -> {chars} 个不可见字符，已随机散布于宿主文本 {hostChars} 个字符中',
+  'text.watermarkedHint':
+    '共 {bits} bits -> {chars} 个不可见字符，已随机散布于宿主文本 {hostChars} 个字符中',
   'text.messageStats': '{chars} 字符 = {bytes} 字节',
   'text.messageLong': '消息较长，请确保宿主文本足够长',
   'text.profile.balanced': '鲁棒-均衡',
@@ -259,10 +381,21 @@ const zh = {
   'text.poison.tagsBlock': 'Tags Block',
   'text.poison.tagsBlockDesc': 'U+E0041-E005A，AI 水印常用范围',
   'text.poison.variationSelectors': '变体选择器',
-  'text.poison.variationSelectorsDesc': 'U+FE00-FE07，附着于普通字符',
+  'text.poison.variationSelectorsDesc': 'U+FE00-FE07，附着于普通字符'
 } as const
 
 const en: Record<keyof typeof zh, string> = {
+  'img.payloadMode': 'Payload mode',
+  'img.payload.fingerprint': 'Short fingerprint',
+  'img.payload.fingerprintDesc': 'Default invisible mode; extracts fp:16hex.',
+  'img.payload.text16': 'Text16 compat',
+  'img.payload.text16Desc': 'Recoverable short text, 16 UTF-8 bytes max.',
+  'diag.payloadMode': 'Payload mode',
+  'diag.fingerprint': 'Fingerprint',
+  'diag.berEstimate': 'BER estimate',
+  'diagHelp.payloadMode': 'Whether the image stores a short fingerprint or a recoverable 16-byte text payload.',
+  'diagHelp.fingerprint': 'The recovered or embedded 64-bit keyed fingerprint.',
+  'diagHelp.berEstimate': 'Soft estimate of bit error likelihood from decoder probabilities.',
   'nav.detect': 'Scan',
   'nav.batch': 'Batch',
   'nav.watermark': 'Watermark',
@@ -279,7 +412,8 @@ const en: Record<keyof typeof zh, string> = {
   'common.remove': 'Remove',
   'common.scanning': 'Scanning...',
   'detect.empty': 'Paste text and press {shortcut} to scan',
-  'detect.emptyHint': 'Detect zero-width characters, homoglyphs, BiDi controls, Tags blocks, and more',
+  'detect.emptyHint':
+    'Detect zero-width characters, homoglyphs, BiDi controls, Tags blocks, and more',
   'detect.analyzing': 'Analyzing characters',
   'detect.error': 'Scan failed',
   'detect.unknownError': 'Unknown error, please try again',
@@ -366,7 +500,8 @@ const en: Record<keyof typeof zh, string> = {
   'category.tagsBlockDesc': 'Unicode Tags block, often used for AI text watermarking',
   'category.homoglyphDesc': 'Characters from other scripts that resemble Latin letters',
   'category.variationDesc': 'Invisible glyph modifiers that can encode hidden data',
-  'category.typoPunctDesc': 'Vertical quotes or unusual punctuation in Chinese context, possible AI-generation trace',
+  'category.typoPunctDesc':
+    'Vertical quotes or unusual punctuation in Chinese context, possible AI-generation trace',
   'settings.title': 'Settings',
   'settings.subtitle': 'Detection rules and app behavior',
   'settings.reset': 'Reset defaults',
@@ -383,7 +518,8 @@ const en: Record<keyof typeof zh, string> = {
   'settings.threshold.midHigh': 'Medium / High boundary',
   'settings.threshold.low': 'Low risk',
   'settings.threshold.mid': 'Medium risk',
-  'settings.threshold.summary': 'Current thresholds: 0-{low} low · {lowPlus}-{mid} medium · {midPlus}-100 high',
+  'settings.threshold.summary':
+    'Current thresholds: 0-{low} low · {lowPlus}-{mid} medium · {midPlus}-100 high',
   'settings.clipboard.title': 'Clipboard Monitor',
   'settings.clipboard.subtitle': 'Detect clipboard changes and prompt scans',
   'settings.clipboard.enable': 'Enable monitoring',
@@ -408,7 +544,8 @@ const en: Record<keyof typeof zh, string> = {
   'img.text': 'Watermark text',
   'img.textPlaceholder': 'Enter a short text or ID to hide in the image...',
   'img.password': 'Password',
-  'img.passwordHelp': 'Embed and extract must use the same integer password. A wrong password cannot decode neural watermarks.',
+  'img.passwordHelp':
+    'Embed and extract must use the same integer password. A wrong password cannot decode neural watermarks.',
   'img.engine': 'Engine',
   'img.engine.auto': 'Auto',
   'img.engine.legacy': 'Legacy',
@@ -417,14 +554,31 @@ const en: Record<keyof typeof zh, string> = {
   'img.engine.legacyDesc': 'DCT + RS engine for long text and old images.',
   'img.engine.neuralDesc': 'Short neural payload with stronger transport robustness.',
   'img.quality': 'Quality / strength',
+  'img.strength': 'Embedding strength',
+  'img.quality.trace': 'Trace',
+  'img.quality.faint': 'Faint',
+  'img.quality.light': 'Light',
   'img.quality.invisible': 'Light',
   'img.quality.balanced': 'Balanced',
+  'img.quality.strong': 'Strong',
   'img.quality.robust': 'Robust',
+  'img.quality.traceDesc': 'Risk accepted',
+  'img.quality.faintDesc': 'Nearly invisible',
+  'img.quality.lightDesc': 'Quality first',
   'img.quality.invisibleDesc': 'Quality first',
   'img.quality.balancedDesc': 'Recommended',
+  'img.quality.strongDesc': 'Platform first',
   'img.quality.robustDesc': 'Transport first',
-  'img.quality.invisibleHint': 'Weakest neural residual. Best for clean saves or mild compression.',
-  'img.quality.balancedHint': 'Default: lighter than alpha1 medium, calibrated against local JPEG50/resize50.',
+  'img.quality.traceHint':
+    'Lowest frequency-spread profile. Prioritizes invisibility and must pass local self-check.',
+  'img.quality.faintHint': 'Very low frequency-spread profile for visually sensitive images.',
+  'img.quality.lightHint':
+    'Recommended low-visibility profile. Uses Y-channel DCT spreading to avoid grid and pink cross marks.',
+  'img.quality.invisibleHint':
+    'Low-visibility recommended profile, tuned to reduce pink cross marks.',
+  'img.quality.balancedHint':
+    'Default: stronger frequency spreading while hiding visible patterns. Use Strong or Robust for platform resharing.',
+  'img.quality.strongHint': 'Improves extraction after QQ/WeChat-style JPEG resharing.',
   'img.quality.robustHint': 'Prioritizes social-platform transport. The mark can be more visible.',
   'img.backend.checking': 'Checking watermark backend...',
   'img.backend.preparing': 'Preparing backend check...',
@@ -435,19 +589,29 @@ const en: Record<keyof typeof zh, string> = {
   'img.backend.missingLib': 'Python was found, but runtime packages are missing.\n{error}',
   'img.backend.noRunner': 'No runnable image watermark backend was found.',
   'img.backend.devFallback': 'Developer fallback: install Python runtime dependencies.',
-  'img.neuralLimitInline': 'neural payload limit is 16 UTF-8 bytes, so Auto will fall back to legacy.',
-  'img.neuralLimitWarn': 'Neural mode only supports payloads up to 16 UTF-8 bytes. Use Auto or Legacy for longer text.',
+  'img.neuralLimitInline':
+    'neural payload limit is 16 UTF-8 bytes, so Auto will fall back to legacy.',
+  'img.neuralLimitWarn':
+    'Neural mode only supports payloads up to 16 UTF-8 bytes. Use Auto or Legacy for longer text.',
   'img.embed': 'Embed watermark',
   'img.embedding': 'Embedding...',
   'img.embedOk': 'Watermark embed succeeded. {engineInfo}',
+  'img.embedOkWithRisk':
+    'Watermark was written, but this strength has extraction risk. {engineInfo}',
   'img.embedFail': 'Embed failed',
   'img.embedComplete': 'Embed complete',
   'img.extract': 'Extract watermark',
   'img.extracting': 'Extracting...',
   'img.extractOk': 'Watermark extract succeeded.',
   'img.extractFail': 'Extract failed',
-  'img.extractWarn': 'Auto tries neural first, then falls back to legacy. Choose an explicit engine when comparing model iterations.',
-  'img.noWatermark': 'No extractable watermark was found. Make sure the image, password, and engine match.',
+  'img.extractWarn':
+    'Extraction usually only needs image, password, and engine. Strength is an advanced Legacy compatibility setting.',
+  'img.showAdvanced': 'Advanced compatibility',
+  'img.hideAdvanced': 'Hide advanced',
+  'img.extractAdvancedHelp':
+    'Neural extraction does not normally need the embedding strength. This is mainly for old Legacy compatibility.',
+  'img.noWatermark':
+    'No extractable watermark was found. Make sure the image, password, and engine match.',
   'img.extracted': 'Extracted watermark',
   'img.engineResult': 'Engine: {engine}',
   'img.fallbackUsed': 'fallback used',
@@ -455,6 +619,108 @@ const en: Record<keyof typeof zh, string> = {
   'img.confidence': 'confidence {value}%',
   'img.qualityResult': 'Quality: {quality}',
   'img.diagnostics': 'Diagnostics',
+  'img.batchTitle': 'Batch Embed',
+  'img.batchSubtitle':
+    'Apply the same watermark, password, engine, and strength to multiple images.',
+  'img.batchImages': 'Batch images',
+  'img.batchNoImages': 'No images selected',
+  'img.batchSelected': '{count} selected',
+  'img.batchMore': '{count} more',
+  'img.batchOutputDir': 'Output folder',
+  'img.batchNoOutputDir': 'No output folder selected',
+  'img.selfCheck.sampled': 'Sample check',
+  'img.selfCheck.all': 'Check all',
+  'img.selfCheck.off': 'No check',
+  'img.batchStart': 'Start batch embed',
+  'img.batchRunning': 'Batch running...',
+  'img.batchCancel': 'Cancel batch',
+  'img.batchProgress': 'Batch progress',
+  'img.batchCurrent': 'Processing: {name}',
+  'img.batchSummary': 'Done: {success} succeeded, {failed} failed, {total} total',
+  'img.batchOk': 'Batch embed complete: {count} images succeeded.',
+  'img.batchFail': 'Batch embed failed',
+  'failure.invalidRequest': 'The request is incomplete or invalid.',
+  'failure.inputUnreadable': 'The image could not be read or written.',
+  'failure.modelUnavailable': 'The watermark backend or neural model is unavailable.',
+  'failure.payloadTooLong': 'Neural watermark text is longer than 16 UTF-8 bytes.',
+  'failure.noSignal': 'No reliable watermark signal was found.',
+  'failure.wrongPasswordOrCorrupted': 'A watermark-like signal was found, but validation failed.',
+  'failure.engineMismatch': 'The selected engine could not decode this image.',
+  'failure.unsupportedProtocol':
+    'This app version does not support the watermark protocol in this image.',
+  'failure.batchPartial': 'Some images failed in the batch.',
+  'failure.batchCancelled': 'The batch was cancelled.',
+  'failure.default': 'The operation failed. Check the image, password, and engine.',
+  'failureHints.invalidRequest':
+    'Confirm image, output path, watermark text, and password are set.|For batch work, confirm all paths still exist.',
+  'failureHints.inputUnreadable':
+    'Confirm the file was not moved or locked by another app.|Try PNG or JPG.',
+  'failureHints.modelUnavailable':
+    'Confirm the helper and ONNX model are bundled.|Retry or restart the app.',
+  'failureHints.payloadTooLong':
+    'Shorten the text to 16 bytes or less.|Use Auto or Legacy for longer text.',
+  'failureHints.noSignal':
+    'Confirm this is the watermarked image.|Try Auto mode, or switch Neural / Legacy.',
+  'failureHints.wrongPasswordOrCorrupted':
+    'Check the password first.|If the password is correct, the image may be over-compressed, cropped, or covered.',
+  'failureHints.engineMismatch': 'Try Auto mode.|Switch between Neural and Legacy.',
+  'failureHints.unsupportedProtocol': 'Update the app and helper, then try again.',
+  'failureHints.batchPartial':
+    'Review failed items and check image format, paths, and output permissions.',
+  'failureHints.batchCancelled': 'The job stopped. Finished images remain in the output folder.',
+  'failureHints.default':
+    'Confirm image, password, and engine match.|If the image was re-shared by a platform, try a stronger embedding profile.',
+  'diag.profile': 'Strength profile',
+  'diag.codec': 'Codec',
+  'diag.protocol': 'Protocol',
+  'diag.passwordProtected': 'Password protected',
+  'diag.visualStrength': 'Visual strength',
+  'diag.chromaScale': 'Color residual',
+  'diag.textureFloor': 'Texture mask',
+  'diag.selfCheckRequired': 'Self-check required',
+  'diag.selfCheckPassed': 'Self-check passed',
+  'diag.payloadBytes': 'Payload bytes',
+  'diag.modelVersion': 'Model version',
+  'diag.modelsDir': 'Model folder',
+  'diag.fallbackReason': 'Fallback reason',
+  'diag.bitConfidence': 'Bit confidence',
+  'diag.decodeStrategy': 'Decode strategy',
+  'diag.geometricCorrection': 'Geometry correction',
+  'diag.warnings': 'Warnings',
+  'diag.spreadDelta': 'Spread strength',
+  'diag.spreadReps': 'Spread repeats',
+  'diag.spreadMaskFloor': 'Mask floor',
+  'diag.spreadMaskGain': 'Mask gain',
+  'diag.spreadBlocks': 'Usable blocks',
+  'diag.spreadConfidence': 'Spread confidence',
+  'diagHelp.default': 'Technical detail used for troubleshooting.',
+  'diagHelp.profile':
+    'The embedding strength profile. Stronger means more robust but more visible.',
+  'diagHelp.codec': 'Actual embedding or decoding method used.',
+  'diagHelp.protocol': 'Internal payload format version.',
+  'diagHelp.passwordProtected': 'Whether the payload bits were protected by the password mask.',
+  'diagHelp.visualStrength': 'Neural residual strength. Higher values write a stronger watermark.',
+  'diagHelp.chromaScale':
+    'Color-channel perturbation ratio. Lower values reduce pink or purple marks.',
+  'diagHelp.textureFloor':
+    'Minimum embedding ratio in flat areas. Lower values hide more in textured regions.',
+  'diagHelp.selfCheckRequired': 'Whether embedding must immediately pass local extraction.',
+  'diagHelp.selfCheckPassed': 'Whether local extraction passed after embedding.',
+  'diagHelp.payloadBytes': 'Byte length of the encoded watermark text.',
+  'diagHelp.modelVersion': 'Version of the neural ONNX model in use.',
+  'diagHelp.modelsDir': 'Folder that contains model files.',
+  'diagHelp.fallbackReason': 'Why Auto mode switched from one engine to another.',
+  'diagHelp.bitConfidence': 'Average confidence for recovered payload bits.',
+  'diagHelp.decodeStrategy': 'Single-view or multi-view aggregate decoding path.',
+  'diagHelp.geometricCorrection': 'Rotation, scaling, crop, or alignment recovery information.',
+  'diagHelp.warnings': 'Risks such as low strength or self-check failure.',
+  'diagHelp.spreadDelta':
+    'Minimum target difference for DCT coefficient pairs. Higher is stronger but changes more pixels.',
+  'diagHelp.spreadReps': 'How many random DCT blocks carry each payload bit.',
+  'diagHelp.spreadMaskFloor': 'Minimum embedding ratio kept in flat image areas.',
+  'diagHelp.spreadMaskGain': 'Extra strength applied in textured and edge-rich areas.',
+  'diagHelp.spreadBlocks': 'Number of 8x8 DCT blocks available in this image.',
+  'diagHelp.spreadConfidence': 'Average correlation-vote confidence for spread-spectrum decoding.',
   'text.host': 'Host text',
   'text.hostPlaceholder': 'Paste original text that will carry the watermark...',
   'text.message': 'Watermark message',
@@ -478,7 +744,8 @@ const en: Record<keyof typeof zh, string> = {
   'text.sourcePoisonPlaceholder': 'Paste text to poison...',
   'text.watermarked': 'Watermarked text',
   'text.watermarkedResult': 'Watermarked text (ready to copy)',
-  'text.watermarkedHint': '{bits} bits -> {chars} invisible characters, scattered across {hostChars} host characters',
+  'text.watermarkedHint':
+    '{bits} bits -> {chars} invisible characters, scattered across {hostChars} host characters',
   'text.messageStats': '{chars} characters = {bytes} bytes',
   'text.messageLong': 'Long message; make sure the host text is long enough',
   'text.profile.balanced': 'Robust balanced',
@@ -517,36 +784,52 @@ const en: Record<keyof typeof zh, string> = {
   'text.poison.tagsBlock': 'Tags Block',
   'text.poison.tagsBlockDesc': 'U+E0041-E005A, common AI watermark range',
   'text.poison.variationSelectors': 'Variation selectors',
-  'text.poison.variationSelectorsDesc': 'U+FE00-FE07, attached to normal characters',
+  'text.poison.variationSelectorsDesc': 'U+FE00-FE07, attached to normal characters'
 }
 
 export type I18nKey = keyof typeof zh
 
 const dictionaries = { 'zh-CN': zh, en }
 
+type I18nContextValue = {
+  t: (key: I18nKey, params?: Record<string, string | number>) => string
+  language: UiLanguage
+  languageSetting: LanguageSetting
+  setLanguage: (value: LanguageSetting) => void
+}
+
 export function resolveUiLanguage(setting: LanguageSetting): UiLanguage {
   if (setting === 'zh-CN' || setting === 'en') return setting
   return navigator.language.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en'
 }
 
-export function formatMessage(template: string, params?: Record<string, string | number>) {
+export function formatMessage(template: string, params?: Record<string, string | number>): string {
   if (!params) return template
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(params[key] ?? ''))
 }
 
-export function useI18n() {
+export function useI18n(): I18nContextValue {
   const { settings, updateSettings } = useSettings()
   const language = resolveUiLanguage(settings.language)
-  const t = useCallback((key: I18nKey, params?: Record<string, string | number>) => {
-    return formatMessage(dictionaries[language][key] ?? dictionaries.en[key] ?? key, params)
-  }, [language])
-  const setLanguage = useCallback((value: LanguageSetting) => {
-    updateSettings('language', value)
-  }, [updateSettings])
-  return useMemo(() => ({
-    t,
-    language,
-    languageSetting: settings.language,
-    setLanguage,
-  }), [language, settings.language, setLanguage, t])
+  const t = useCallback(
+    (key: I18nKey, params?: Record<string, string | number>) => {
+      return formatMessage(dictionaries[language][key] ?? dictionaries.en[key] ?? key, params)
+    },
+    [language]
+  )
+  const setLanguage = useCallback(
+    (value: LanguageSetting) => {
+      updateSettings('language', value)
+    },
+    [updateSettings]
+  )
+  return useMemo(
+    () => ({
+      t,
+      language,
+      languageSetting: settings.language,
+      setLanguage
+    }),
+    [language, settings.language, setLanguage, t]
+  )
 }

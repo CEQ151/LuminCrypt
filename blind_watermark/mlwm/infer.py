@@ -21,6 +21,21 @@ class NeuralRuntimeUnavailable(RuntimeError):
   pass
 
 
+class NeuralDecodeError(ValueError):
+  def __init__(
+    self,
+    failure_code: str,
+    message: str,
+    *,
+    confidence: float = 0.0,
+    attempts: list[dict[str, Any]] | None = None,
+  ):
+    super().__init__(message)
+    self.failure_code = failure_code
+    self.confidence = confidence
+    self.attempts = attempts or []
+
+
 @dataclass
 class NeuralModelStatus:
   models_dir: Path
@@ -100,6 +115,43 @@ def _resize_residual(residual: np.ndarray, shape: tuple[int, int]) -> np.ndarray
   return cv2.resize(residual, (w, h), interpolation=cv2.INTER_CUBIC)
 
 
+def _texture_mask(image_rgb: np.ndarray, *, floor: float = 1.0, power: float = 1.0) -> np.ndarray:
+  if floor >= 0.999:
+    return np.ones(image_rgb.shape[:2], dtype=np.float32)
+  gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY).astype(np.float32) / 255.0
+  gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+  gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+  mag = cv2.GaussianBlur(np.sqrt(gx * gx + gy * gy), (0, 0), 1.2)
+  lo, hi = float(np.percentile(mag, 35)), float(np.percentile(mag, 96))
+  norm = np.clip((mag - lo) / max(hi - lo, 1e-6), 0.0, 1.0)
+  if power != 1.0:
+    norm = np.power(norm, power)
+  return (floor + (1.0 - floor) * norm).astype(np.float32)
+
+
+def _shape_residual(image_rgb: np.ndarray, residual: np.ndarray, profile: dict[str, Any] | None) -> np.ndarray:
+  if not profile:
+    return residual.astype(np.float32)
+  shaped = residual.astype(np.float32)
+  chroma_scale = float(profile.get('chroma_scale', 1.0))
+  if chroma_scale < 0.999:
+    luminance_like = np.mean(shaped, axis=2, keepdims=True)
+    shaped = luminance_like + (shaped - luminance_like) * max(0.0, chroma_scale)
+  mask_floor = float(profile.get('texture_floor', 1.0))
+  if mask_floor < 0.999:
+    mask = _texture_mask(
+      image_rgb,
+      floor=max(0.0, min(1.0, mask_floor)),
+      power=float(profile.get('texture_power', 1.0)),
+    )
+    shaped = shaped * mask[..., None]
+  max_abs = profile.get('max_abs_residual')
+  if max_abs is not None:
+    limit = max(float(max_abs), 1e-6)
+    shaped = np.tanh(shaped / limit) * limit
+  return shaped
+
+
 def _bits_array(payload_bits: np.ndarray) -> np.ndarray:
   bits = np.asarray(payload_bits, dtype=np.float32).reshape(1, PAYLOAD_BITS)
   if bits.shape[1] != PAYLOAD_BITS:
@@ -135,9 +187,11 @@ def apply_neural_residual(
   residual: np.ndarray,
   *,
   strength: float = 1.0,
+  profile: dict[str, Any] | None = None,
 ) -> np.ndarray:
   out = image_rgb.astype(np.float32) / 255.0
-  out = np.clip(out + residual.astype(np.float32) * strength, 0.0, 1.0)
+  shaped = _shape_residual(image_rgb, residual, profile)
+  out = np.clip(out + shaped * strength, 0.0, 1.0)
   return np.clip(np.round(out * 255.0), 0, 255).astype(np.uint8)
 
 
@@ -153,6 +207,7 @@ def neural_decode_views(
     raise NeuralRuntimeUnavailable('neural models are not ready')
   session = _load_decoder_session(str(status.decoder_path), use_cuda)
   attempts: list[dict[str, Any]] = []
+  decode_errors: list[str] = []
   weighted_logits = np.zeros(PAYLOAD_BITS, dtype=np.float32)
   total_weight = 0.0
   for index, view in enumerate(views_rgb):
@@ -174,16 +229,27 @@ def neural_decode_views(
       decoded['strategy'] = 'single-view'
       decoded['manifest'] = status.manifest
       return decoded
-    except Exception:
+    except Exception as exc:
+      decode_errors.append(str(exc))
       continue
 
   if total_weight <= 1e-8:
     raise NeuralRuntimeUnavailable('decoder produced no usable confidence scores')
 
   aggregated_logits = weighted_logits / total_weight
-  decoded = decode_payload_logits(aggregated_logits, password=password)
-  decoded['confidence'] = float(total_weight / max(len(views_rgb), 1))
-  decoded['attempts'] = [{'index': a['index'], 'confidence': a['confidence']} for a in attempts]
-  decoded['strategy'] = 'weighted-aggregate'
-  decoded['manifest'] = status.manifest
-  return decoded
+  avg_confidence = float(total_weight / max(len(views_rgb), 1))
+  try:
+    decoded = decode_payload_logits(aggregated_logits, password=password)
+    decoded['confidence'] = avg_confidence
+    decoded['attempts'] = [{'index': a['index'], 'confidence': a['confidence']} for a in attempts]
+    decoded['strategy'] = 'weighted-aggregate'
+    decoded['manifest'] = status.manifest
+    return decoded
+  except Exception as exc:
+    failure_code = 'wrong_password_or_corrupted_payload' if avg_confidence >= 0.45 else 'no_signal'
+    raise NeuralDecodeError(
+      failure_code,
+      'payload checksum failed' if failure_code != 'no_signal' else 'no reliable neural watermark signal',
+      confidence=avg_confidence,
+      attempts=[{'index': a['index'], 'confidence': a['confidence']} for a in attempts],
+    ) from exc
