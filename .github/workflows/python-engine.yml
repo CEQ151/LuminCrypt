@@ -31,7 +31,7 @@ jobs:
           dep = check_dependencies()
           assert dep['ok'], f'Missing deps: {dep}'
 
-          img = np.random.randint(0, 256, (800, 800, 3), dtype=np.uint8)
+          img = np.random.default_rng(7).integers(0, 256, (800, 800, 3), dtype=np.uint8)
 
           embedded = embed_watermark(
               img,
@@ -49,7 +49,26 @@ jobs:
               quality='balanced',
           )
           assert extracted['ok'], f'Extract failed: {extracted}'
-          assert extracted['wm'] == 'hello world', f'Roundtrip failed: {extracted}'
+          assert extracted['wm'].startswith('fp:'), f'Fingerprint roundtrip failed: {extracted}'
+          assert extracted.get('payloadMode') == 'fingerprint64', extracted
+
+          text16_embedded = embed_watermark(
+              img,
+              'hello world',
+              password=42,
+              quality='balanced',
+              payload_mode='text16',
+          )
+          assert text16_embedded['ok'], f'Text16 embed failed: {text16_embedded}'
+
+          text16_extracted = extract_watermark(
+              text16_embedded['image'],
+              password=42,
+              quality='balanced',
+              payload_mode='text16',
+          )
+          assert text16_extracted['ok'], f'Text16 extract failed: {text16_extracted}'
+          assert text16_extracted['wm'] == 'hello world', f'Text16 roundtrip failed: {text16_extracted}'
 
           print('All tests passed.')
 
