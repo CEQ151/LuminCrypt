@@ -9,6 +9,11 @@ class MlwmRuntimeTests(unittest.TestCase):
       self.assertFalse(profile.get('sync_enabled', False))
       self.assertEqual(profile.get('template_strength'), 0.0)
 
+  def test_neural_profiles_expose_three_visual_strengths(self):
+    self.assertEqual(set(rwm_engine.NEURAL_PROFILES.keys()), {'invisible', 'balanced', 'robust'})
+    self.assertLess(rwm_engine.NEURAL_PROFILES['invisible']['residual_strength'], rwm_engine.NEURAL_PROFILES['balanced']['residual_strength'])
+    self.assertLess(rwm_engine.NEURAL_PROFILES['balanced']['residual_strength'], rwm_engine.NEURAL_PROFILES['robust']['residual_strength'])
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -8,6 +8,7 @@ from blind_watermark.mlwm.codec import (
   bits_to_bytes,
   bytes_to_bits,
   decode_payload_bits,
+  decode_payload_logits,
   encode_frame,
   encode_text_payload,
   unwhiten_payload_bits,
@@ -21,6 +22,31 @@ class CodecTests(unittest.TestCase):
     decoded = decode_payload_bits(envelope.bits)
     self.assertEqual(decoded['text'], 'TRACE-42')
     self.assertEqual(len(envelope.encoded), ENCODED_BYTES)
+
+  def test_password_protected_payload_roundtrip(self):
+    envelope = encode_text_payload('LOCKED-42', password=2468)
+    decoded = decode_payload_bits(envelope.bits, password=2468)
+    self.assertEqual(decoded['text'], 'LOCKED-42')
+    self.assertTrue(envelope.password_protected)
+    self.assertTrue(decoded['passwordProtected'])
+
+  def test_wrong_password_rejects_payload(self):
+    envelope = encode_text_payload('LOCKED-42', password=2468)
+    with self.assertRaises(Exception):
+      decode_payload_bits(envelope.bits, password=2469)
+
+  def test_different_passwords_produce_different_payload_bits(self):
+    a = encode_text_payload('LOCKED-42', password=2468)
+    b = encode_text_payload('LOCKED-42', password=2469)
+    self.assertFalse(np.array_equal(a.bits, b.bits))
+
+  def test_password_protected_logits_roundtrip(self):
+    envelope = encode_text_payload('LOGITS-42', password=2468)
+    logits = (envelope.bits * 2.0 - 1.0) * 8.0
+    decoded = decode_payload_logits(logits, password=2468)
+    self.assertEqual(decoded['text'], 'LOGITS-42')
+    with self.assertRaises(Exception):
+      decode_payload_logits(logits, password=2469)
 
   def test_reject_long_text(self):
     with self.assertRaises(ValueError):
